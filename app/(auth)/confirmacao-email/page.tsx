@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CheckCircle2, Loader2, MailWarning } from 'lucide-react'
@@ -16,7 +16,7 @@ async function resolveConfirmedState() {
   return Boolean(user && user.email_confirmed_at)
 }
 
-export default function ConfirmacaoEmailPage() {
+function ConfirmacaoEmailContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [state, setState] = useState<ConfirmationState>('loading')
@@ -124,5 +124,25 @@ export default function ConfirmacaoEmailPage() {
         Ir para entrar
       </Link>
     </div>
+  )
+}
+
+export default function ConfirmacaoEmailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="py-6 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
+            <Loader2 className="h-9 w-9 animate-spin text-blue-600" />
+          </div>
+          <h1 className="mb-2 text-2xl font-bold text-gray-900">Confirmando seu e-mail</h1>
+          <p className="mb-6 text-sm text-gray-500">
+            Estamos validando seu link de confirmacao.
+          </p>
+        </div>
+      }
+    >
+      <ConfirmacaoEmailContent />
+    </Suspense>
   )
 }
