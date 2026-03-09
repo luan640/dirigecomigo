@@ -1,38 +1,19 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { addDays, format, startOfDay } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Loader2, Plus, Settings, X } from 'lucide-react'
 import { toast } from 'sonner'
 
-type Slot = {
-  id: string
-  date: string
-  start_time: string
-  end_time: string
-  is_booked: boolean
-}
-
-type BlockedInterval = {
-  id: string
-  start: string
-  end: string
-}
-
-type DaySchedule = {
-  key: string
-  label: string
-  enabled: boolean
-  start: string
-  end: string
-  blocked: BlockedInterval[]
-}
-
-type WeeklyScheduleSettings = {
-  slot_minutes: number
-  days: DaySchedule[]
-}
+import {
+  DEFAULT_WEEKLY_SCHEDULE,
+  type DaySchedule,
+  type WeeklyScheduleSettings,
+  normalizeWeeklyScheduleSettings,
+  generateScheduleWindow,
+  toMinutes,
+} from '@/lib/schedule'
 
 type BookingRow = {
   scheduled_date?: string
@@ -40,127 +21,23 @@ type BookingRow = {
   status?: string
 }
 
-type AvailabilityRow = {
-  id?: string
-  date?: string
-  start_time?: string
-  end_time?: string
-  is_booked?: boolean
-}
-
 const AVAILABILITY_DAYS_AHEAD = 60
-
-const DEFAULT_SETTINGS: WeeklyScheduleSettings = {
-  slot_minutes: 60,
-  days: [
-    { key: '1', label: 'Seg', enabled: true, start: '07:00', end: '17:00', blocked: [{ id: 'seg-lunch', start: '12:00', end: '13:00' }] },
-    { key: '2', label: 'Ter', enabled: true, start: '07:00', end: '17:00', blocked: [{ id: 'ter-lunch', start: '12:00', end: '13:00' }] },
-    { key: '3', label: 'Qua', enabled: true, start: '07:00', end: '17:00', blocked: [{ id: 'qua-lunch', start: '12:00', end: '13:00' }] },
-    { key: '4', label: 'Qui', enabled: true, start: '07:00', end: '17:00', blocked: [{ id: 'qui-lunch', start: '12:00', end: '13:00' }] },
-    { key: '5', label: 'Sex', enabled: true, start: '07:00', end: '17:00', blocked: [{ id: 'sex-lunch', start: '12:00', end: '13:00' }] },
-    { key: '6', label: 'Sab', enabled: true, start: '08:00', end: '12:00', blocked: [] },
-    { key: '0', label: 'Dom', enabled: false, start: '08:00', end: '12:00', blocked: [] },
-  ],
-}
-
-function toMinutes(value: string) {
-  const [hours, minutes] = value.split(':').map(Number)
-  return hours * 60 + minutes
-}
-
-function toTimeLabel(totalMinutes: number) {
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
-}
-
-function toEndTime(start: string, slotMinutes: number) {
-  return `${toTimeLabel(toMinutes(start) + slotMinutes)}:00`
-}
-
-function generateSlotsForDay(date: Date, schedule: DaySchedule, slotMinutes: number, bookedLookup: Set<string>) {
-  if (!schedule.enabled) return []
-
-  const start = toMinutes(schedule.start)
-  const end = toMinutes(schedule.end)
-  const blockedIntervals = schedule.blocked
-    .filter(interval => interval.start && interval.end && toMinutes(interval.start) < toMinutes(interval.end))
-    .map(interval => ({
-      start: toMinutes(interval.start),
-      end: toMinutes(interval.end),
-    }))
-
-  const dateStr = format(date, 'yyyy-MM-dd')
-  const slots: Slot[] = []
-
-  for (let current = start; current + slotMinutes <= end; current += slotMinutes) {
-    const slotEnd = current + slotMinutes
-    const overlapsBlocked = blockedIntervals.some(interval => current < interval.end && slotEnd > interval.start)
-    if (overlapsBlocked) continue
-
-    const startLabel = toTimeLabel(current)
-    slots.push({
-      id: `${dateStr}-${startLabel}`,
-      date: dateStr,
-      start_time: `${startLabel}:00`,
-      end_time: toEndTime(startLabel, slotMinutes),
-      is_booked: bookedLookup.has(`${dateStr}-${startLabel}`),
-    })
-  }
-
-  return slots
-}
 
 export default function HorariosPage() {
   const [weekOffset, setWeekOffset] = useState(0)
   const today = startOfDay(new Date())
   const [showSettings, setShowSettings] = useState(false)
-  const [settings, setSettings] = useState<WeeklyScheduleSettings>(DEFAULT_SETTINGS)
-  const [settingsDraft, setSettingsDraft] = useState<WeeklyScheduleSettings>(DEFAULT_SETTINGS)
+  const [settings, setSettings] = useState<WeeklyScheduleSettings>(DEFAULT_WEEKLY_SCHEDULE)
+  const [settingsDraft, setSettingsDraft] = useState<WeeklyScheduleSettings>(DEFAULT_WEEKLY_SCHEDULE)
   const [loadingBookings, setLoadingBookings] = useState(true)
   const [savingSettings, setSavingSettings] = useState(false)
   const [bookedLookup, setBookedLookup] = useState<Set<string>>(new Set())
-  const [persistedSlots, setPersistedSlots] = useState<Slot[]>([])
-
-  const loadPersistedAvailability = useCallback(async (instructorId: string) => {
-    const { createClient } = await import('@/lib/supabase/client')
-    const supabase = createClient()
-    const startDate = format(today, 'yyyy-MM-dd')
-    const endDate = format(addDays(today, AVAILABILITY_DAYS_AHEAD), 'yyyy-MM-dd')
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await (supabase as any)
-      .from('instructor_availability')
-      .select('id,date,start_time,end_time,is_booked')
-      .eq('instructor_id', instructorId)
-      .gte('date', startDate)
-      .lte('date', endDate)
-      .order('date', { ascending: true })
-      .order('start_time', { ascending: true })
-
-    if (!Array.isArray(data)) {
-      setPersistedSlots([])
-      return
-    }
-
-    setPersistedSlots(
-      data
-        .map((slot: AvailabilityRow) => ({
-          id: String(slot.id || `${slot.date}-${String(slot.start_time || '').slice(0, 5)}`),
-          date: String(slot.date || ''),
-          start_time: `${String(slot.start_time || '').slice(0, 5)}:00`,
-          end_time: `${String(slot.end_time || '').slice(0, 5)}:00`,
-          is_booked: Boolean(slot.is_booked),
-        })),
-    )
-  }, [today])
 
   useEffect(() => {
     const loadBookedSlots = async () => {
       const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
       if (DEMO_MODE) {
         setBookedLookup(new Set())
-        setPersistedSlots([])
         setLoadingBookings(false)
         return
       }
@@ -172,11 +49,18 @@ export default function HorariosPage() {
         const user = authData.user
         if (!user) {
           setBookedLookup(new Set())
-          setPersistedSlots([])
           return
         }
 
-        await loadPersistedAvailability(user.id)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: instructorData } = await (supabase.from('instructors') as any)
+          .select('weekly_schedule')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        const nextSettings = normalizeWeeklyScheduleSettings(instructorData?.weekly_schedule)
+        setSettings(nextSettings)
+        setSettingsDraft(nextSettings)
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data, error } = await (supabase as any)
@@ -212,36 +96,24 @@ export default function HorariosPage() {
     }
 
     void loadBookedSlots()
-  }, [loadPersistedAvailability])
+  }, [])
 
   const weekDays = Array.from({ length: 7 }, (_, index) => addDays(today, weekOffset * 7 + index))
-  const scheduleMap = useMemo(
-    () => new Map(settings.days.map(day => [day.key, day])),
-    [settings.days],
-  )
-  const persistedSlotsByDate = useMemo(() => {
-    return new Map(
-      weekDays.map(day => {
-        const dateStr = format(day, 'yyyy-MM-dd')
-        return [dateStr, persistedSlots
-          .filter(slot => slot.date === dateStr)
-          .map(slot => ({
-            ...slot,
-            is_booked: slot.is_booked || bookedLookup.has(`${slot.date}-${slot.start_time.slice(0, 5)}`),
-          }))]
-      }),
-    )
-  }, [bookedLookup, persistedSlots, weekDays])
   const generatedSlotsByDate = useMemo(() => {
+    const allSlots = generateScheduleWindow({
+      settings,
+      bookedLookup,
+      startDate: today,
+      daysAhead: AVAILABILITY_DAYS_AHEAD,
+    })
+
     return new Map(
       weekDays.map(day => {
-        const weekdayKey = String(day.getDay())
-        const schedule = scheduleMap.get(weekdayKey)
         const dateStr = format(day, 'yyyy-MM-dd')
-        return [dateStr, schedule ? generateSlotsForDay(day, schedule, settings.slot_minutes, bookedLookup) : []]
+        return [dateStr, allSlots.filter(slot => slot.date === dateStr)]
       }),
     )
-  }, [bookedLookup, scheduleMap, settings.slot_minutes, weekDays])
+  }, [bookedLookup, settings, today, weekDays])
 
   const updateDayDraft = (dayKey: string, updater: (day: DaySchedule) => DaySchedule) => {
     setSettingsDraft(prev => ({
@@ -315,89 +187,19 @@ export default function HorariosPage() {
         return
       }
 
-      const startDate = format(today, 'yyyy-MM-dd')
-      const endDate = format(addDays(today, AVAILABILITY_DAYS_AHEAD), 'yyyy-MM-dd')
-
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: existingRows, error: existingError } = await (supabase as any)
-        .from('instructor_availability')
-        .select('id,date,start_time,end_time,is_booked')
-        .eq('instructor_id', user.id)
-        .gte('date', startDate)
-        .lte('date', endDate)
+      const updateResult = await (supabase.from('instructors') as any)
+        .update({ weekly_schedule: settingsDraft })
+        .eq('id', user.id)
 
-      if (existingError) {
-        toast.error('Nao foi possivel carregar a agenda atual do banco.')
+      if (updateResult.error) {
+        toast.error(updateResult.error.message || 'Nao foi possivel salvar a agenda.')
         return
       }
 
-      const existingBookedMap = new Map<string, AvailabilityRow>()
-      for (const row of Array.isArray(existingRows) ? existingRows : []) {
-        const date = String((row as AvailabilityRow).date || '')
-        const time = String((row as AvailabilityRow).start_time || '').slice(0, 5)
-        if (date && time && (row as AvailabilityRow).is_booked) {
-          existingBookedMap.set(`${date}-${time}`, row as AvailabilityRow)
-        }
-      }
-
-      const generatedRows: Array<{
-        instructor_id: string
-        date: string
-        start_time: string
-        end_time: string
-        is_booked: boolean
-      }> = []
-
-      for (let offset = 0; offset <= AVAILABILITY_DAYS_AHEAD; offset += 1) {
-        const date = addDays(today, offset)
-        const dateStr = format(date, 'yyyy-MM-dd')
-        const weekdayKey = String(date.getDay())
-        const schedule = settingsDraft.days.find(day => day.key === weekdayKey)
-        if (!schedule) continue
-
-        const slots = generateSlotsForDay(date, schedule, settingsDraft.slot_minutes, new Set())
-        for (const slot of slots) {
-          const key = `${dateStr}-${slot.start_time.slice(0, 5)}`
-          generatedRows.push({
-            instructor_id: user.id,
-            date: dateStr,
-            start_time: slot.start_time,
-            end_time: slot.end_time,
-            is_booked: Boolean(existingBookedMap.get(key)?.is_booked),
-          })
-        }
-      }
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const deleteResult = await (supabase as any)
-        .from('instructor_availability')
-        .delete()
-        .eq('instructor_id', user.id)
-        .gte('date', startDate)
-        .lte('date', endDate)
-        .eq('is_booked', false)
-
-      if (deleteResult.error) {
-        toast.error('Nao foi possivel limpar os slots antigos da agenda.')
-        return
-      }
-
-      if (generatedRows.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const upsertResult = await (supabase as any)
-          .from('instructor_availability')
-          .upsert(generatedRows, { onConflict: 'instructor_id,date,start_time' })
-
-        if (upsertResult.error) {
-          toast.error('Nao foi possivel salvar os horarios da agenda.')
-          return
-        }
-      }
-
-      await loadPersistedAvailability(user.id)
       setSettings(settingsDraft)
       setShowSettings(false)
-      toast.success('Agenda semanal salva no banco.')
+      toast.success('Agenda semanal salva.')
     } catch {
       toast.error('Nao foi possivel salvar a agenda.')
     } finally {
@@ -440,7 +242,7 @@ export default function HorariosPage() {
       {loadingBookings && (
         <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-500">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Carregando agendamentos reais...
+          Carregando agendamentos...
         </div>
       )}
 
@@ -448,9 +250,7 @@ export default function HorariosPage() {
         {weekDays.map(day => {
           const dateStr = format(day, 'yyyy-MM-dd')
           const isPast = day < today
-          const daySlots = (persistedSlotsByDate.get(dateStr)?.length
-            ? persistedSlotsByDate.get(dateStr)
-            : generatedSlotsByDate.get(dateStr)) || []
+          const daySlots = generatedSlotsByDate.get(dateStr) || []
 
           return (
             <div key={dateStr} className={`bg-white rounded-xl border shadow-sm p-4 ${isPast ? 'opacity-50' : ''}`}>
@@ -463,7 +263,7 @@ export default function HorariosPage() {
 
               <div className="mt-3 space-y-1.5">
                 {daySlots.length === 0 && (
-                  <p className="text-xs text-gray-400 text-center py-2">Sem horarios configurados</p>
+                  <p className="text-xs text-gray-400 text-center py-2">Sem horários configurados</p>
                 )}
 
                 {daySlots.map(slot => (
@@ -575,7 +375,7 @@ export default function HorariosPage() {
 
                     {day.blocked.map(interval => (
                       <div key={interval.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-gray-50 px-3 py-3">
-                        <span className="text-sm font-medium text-gray-600 min-w-24">Nao agenda</span>
+                        <span className="text-sm font-medium text-gray-600 min-w-24">Não agenda</span>
                         <label className="text-sm text-gray-700">
                           De
                           <input
@@ -623,7 +423,7 @@ export default function HorariosPage() {
                 disabled={savingSettings}
                 className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-blue-400"
               >
-                {savingSettings ? 'Salvando...' : 'Salvar configuracoes'}
+                {savingSettings ? 'Salvando...' : 'Salvar configurações'}
               </button>
             </div>
           </div>

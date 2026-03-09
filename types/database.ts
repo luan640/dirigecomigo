@@ -1,7 +1,7 @@
 // Supabase Database Types - mirrors the PostgreSQL schema exactly
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
-export type UserRole = 'student' | 'instructor'
+export type UserRole = 'student' | 'instructor' | 'admin'
 export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled'
 export type PaymentStatus = 'pending' | 'processing' | 'paid' | 'failed' | 'refunded'
 export type SubscriptionStatus = 'active' | 'pending' | 'expired' | 'cancelled'
@@ -56,6 +56,7 @@ export interface Database {
           state: string
           latitude: number | null
           longitude: number | null
+          weekly_schedule: Json | null
           rating: number
           review_count: number
           total_lessons: number
@@ -137,6 +138,18 @@ export interface Database {
         }
         Insert: Omit<Database['public']['Tables']['subscriptions']['Row'], 'created_at' | 'updated_at'>
         Update: Partial<Database['public']['Tables']['subscriptions']['Insert']>
+      }
+      platform_settings: {
+        Row: {
+          key: string
+          platform_fee_percent: number
+          pix_fee_percent: number
+          card_fee_percent: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['platform_settings']['Row'], 'created_at' | 'updated_at'>
+        Update: Partial<Database['public']['Tables']['platform_settings']['Insert']>
       }
       reviews: {
         Row: {

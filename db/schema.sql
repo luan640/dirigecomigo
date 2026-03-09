@@ -5,6 +5,7 @@
 
 -- ── Teardown (safe re-run) ───────────────────────────────────
 drop table if exists lesson_packages          cascade;
+drop table if exists platform_settings        cascade;
 drop table if exists favorites                cascade;
 drop table if exists reviews                  cascade;
 drop table if exists subscriptions            cascade;
@@ -61,11 +62,14 @@ create table instructors (
   id                  uuid primary key references profiles(id) on delete cascade,
   bio                 text,
   price_per_lesson    numeric(10,2) not null check (price_per_lesson >= 50),
+  price_per_lesson_a  numeric(10,2) check (price_per_lesson_a is null or price_per_lesson_a >= 50),
+  price_per_lesson_b  numeric(10,2) check (price_per_lesson_b is null or price_per_lesson_b >= 50),
   neighborhood        text not null,
   city                text not null default 'Fortaleza',
   state               text not null default 'CE',
   latitude            double precision,
   longitude           double precision,
+  weekly_schedule     jsonb,
   category            vehicle_category not null default 'B',
   categories          vehicle_category[] not null default ARRAY['B']::vehicle_category[],
   min_advance_booking_hours integer not null default 2 check (min_advance_booking_hours between 0 and 168),
@@ -157,6 +161,20 @@ create table subscriptions (
 
 create index subscriptions_instructor_idx on subscriptions(instructor_id, status);
 
+-- platform_settings
+create table platform_settings (
+  key                    text primary key default 'default' check (key = 'default'),
+  platform_fee_percent   numeric(5,2) not null default 8 check (platform_fee_percent >= 0 and platform_fee_percent <= 100),
+  pix_fee_percent        numeric(5,2) not null default 0 check (pix_fee_percent >= 0 and pix_fee_percent <= 100),
+  card_fee_percent       numeric(5,2) not null default 8 check (card_fee_percent >= 0 and card_fee_percent <= 100),
+  created_at             timestamptz not null default now(),
+  updated_at             timestamptz not null default now()
+);
+
+insert into platform_settings (key)
+values ('default')
+on conflict (key) do nothing;
+
 -- ── reviews ─────────────────────────────────────────────────
 create table reviews (
   id            uuid primary key default uuid_generate_v4(),
@@ -205,6 +223,7 @@ create trigger profiles_updated_at    before update on profiles    for each row 
 create trigger instructors_updated_at before update on instructors for each row execute procedure touch_updated_at();
 create trigger bookings_updated_at    before update on bookings    for each row execute procedure touch_updated_at();
 create trigger subscriptions_updated_at before update on subscriptions for each row execute procedure touch_updated_at();
+create trigger platform_settings_updated_at before update on platform_settings for each row execute procedure touch_updated_at();
 create trigger packages_updated_at      before update on lesson_packages for each row execute procedure touch_updated_at();
 
 -- ── Trigger: recalculate instructor rating after review ───────
@@ -265,6 +284,7 @@ alter table payments                 enable row level security;
 alter table subscriptions            enable row level security;
 alter table reviews                  enable row level security;
 alter table favorites                enable row level security;
+alter table platform_settings        enable row level security;
 
 -- profiles: own row or public read
 create policy "profiles_public_read"  on profiles for select using (true);
@@ -304,6 +324,8 @@ create policy "reviews_own_write"   on reviews for all using (auth.uid() = stude
 
 -- favorites: student own
 create policy "favorites_own" on favorites for all using (auth.uid() = student_id);
+
+create policy "platform_settings_public_read" on platform_settings for select using (true);
 
 -- lesson_packages: public read; instructor writes own
 alter table lesson_packages enable row level security;

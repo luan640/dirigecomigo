@@ -2,19 +2,28 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Star, MapPin, Car, CheckCircle2 } from 'lucide-react'
 import type { InstructorCard as InstructorCardType } from '@/types'
+import { normalizePlatformPricingSettings, type PlatformPricingSettings } from '@/lib/platformPricing'
 import { formatCurrency, getAvailabilityLabel } from '@/utils/format'
-import Badge from '@/components/ui/Badge'
 
 interface InstructorCardProps {
   instructor: InstructorCardType
   compact?: boolean
+  platformSettings?: Partial<PlatformPricingSettings> | null
 }
 
-export default function InstructorCard({ instructor, compact = false }: InstructorCardProps) {
+export default function InstructorCard({
+  instructor,
+  compact = false,
+  platformSettings,
+}: InstructorCardProps) {
   const availability = getAvailabilityLabel(
     instructor.available_today,
     instructor.availability_label === 'available' ? 5 : instructor.availability_label === 'limited' ? 2 : 0
   )
+  const normalizedPlatformSettings = normalizePlatformPricingSettings(platformSettings)
+  const studentVisiblePrice =
+    instructor.price_per_lesson +
+    instructor.price_per_lesson * (normalizedPlatformSettings.platform_fee_percent / 100)
 
   const avatarUrl =
     instructor.avatar_url ||
@@ -92,7 +101,7 @@ export default function InstructorCard({ instructor, compact = false }: Instruct
           </div>
           <div className="text-right">
             <span className="text-xl font-bold text-violet-600">
-              {formatCurrency(instructor.price_per_lesson)}
+              {formatCurrency(studentVisiblePrice)}
             </span>
             <span className="text-xs text-gray-400 block">por aula</span>
           </div>

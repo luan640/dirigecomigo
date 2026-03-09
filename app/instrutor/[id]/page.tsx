@@ -4,12 +4,15 @@ import { addDays, format } from 'date-fns'
 import { Star, MapPin, Car, CheckCircle2 } from 'lucide-react'
 import { MOCK_INSTRUCTORS, MOCK_REVIEWS, generateMockAvailability } from '@/lib/mock-data'
 import { loadPublicInstructors } from '@/lib/publicInstructors'
+import { DEFAULT_PLATFORM_PRICING_SETTINGS, normalizePlatformPricingSettings } from '@/lib/platformPricing'
 import { createClient } from '@/lib/supabase/server'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { VEHICLE_CATEGORY_LABELS } from '@/constants/pricing'
+import { generateScheduleWindow } from '@/lib/schedule'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
-import BookingSection from './BookingSection'
+import BookingSection from '@/components/ui/PublicBookingSection'
+import type { AvailabilitySlot } from '@/types'
 
 const CAT_CONFIG: Record<string, { label: string; color: string }> = {
   A: { label: 'Moto (Cat. A)', color: 'bg-orange-100 text-orange-700 border border-orange-200' },
@@ -47,13 +50,6 @@ const DEFAULT_WEEKLY_TEMPLATES: Record<string, Array<{ start_time: string; end_t
   })),
 }
 
-type AvailabilityItem = {
-  id: string
-  date: string
-  start_time: string
-  end_time: string
-  is_booked: boolean
-}
 type AvailabilityRow = {
   id: string
   date: string
@@ -85,6 +81,7 @@ async function loadInstructorProfileData(id: string) {
       reviews: instructor ? MOCK_REVIEWS[id] || [] : [],
       availability: instructor ? generateMockAvailability(id) : [],
       memberSince: '2026-01-01',
+      platformSettings: DEFAULT_PLATFORM_PRICING_SETTINGS,
     }
   }
 
@@ -92,7 +89,7 @@ async function loadInstructorProfileData(id: string) {
   const instructor = instructors.find(item => item.id === id) || null
   if (!instructor) return { instructor: null, reviews: [], availability: [] }
 
-  const [availabilityResult, bookingResult, instructorMetaResult] = await Promise.all([
+  const [availabilityResult, bookingResult, instructorMetaResult, platformSettingsResult] = await Promise.all([
     supabase
       .from('instructor_availability')
       .select('id,date,start_time,end_time,is_booked')
@@ -110,16 +107,22 @@ async function loadInstructorProfileData(id: string) {
       .select('created_at')
       .eq('id', id)
       .maybeSingle(),
+    supabase
+      .from('platform_settings')
+      .select('platform_fee_percent,pix_fee_percent,card_fee_percent')
+      .eq('key', 'default')
+      .maybeSingle(),
   ])
 
   const availabilityRows = availabilityResult.data
   const bookingRows = bookingResult.data
   const instructorMeta = (instructorMetaResult as { data: InstructorMetaRow | null; error: Error | null }).data
+  const platformSettings = normalizePlatformPricingSettings(platformSettingsResult.data || DEFAULT_PLATFORM_PRICING_SETTINGS)
 
   const safeAvailabilityRows: AvailabilityRow[] = Array.isArray(availabilityRows) ? availabilityRows : []
   const safeBookingRows: BookingRow[] = Array.isArray(bookingRows) ? bookingRows : []
 
-  const occupiedSlotKeys = new Set(
+  const occupiedSlotKeys = new Set<string>(
     safeBookingRows
       .filter(row => {
         const status = String(row.status || '')
@@ -137,7 +140,7 @@ async function loadInstructorProfileData(id: string) {
 
   const todayDate = new Date()
   const todayStr = format(todayDate, 'yyyy-MM-dd')
-  const mappedAvailability: AvailabilityItem[] = safeAvailabilityRows
+  const mappedAvailability: AvailabilitySlot[] = safeAvailabilityRows
     .map(slot => ({
         id: String(slot.id),
         date: String(slot.date),
@@ -147,9 +150,27 @@ async function loadInstructorProfileData(id: string) {
           Boolean(slot.is_booked) ||
           occupiedSlotKeys.has(`id:${String(slot.id)}`) ||
           occupiedSlotKeys.has(`time:${String(slot.date)}-${String(slot.start_time).slice(0, 5)}`),
+        is_blocked: false,
       }))
 
-  const futureAvailability = mappedAvailability.filter(slot => slot.date >= todayStr)
+  const generatedFromWeeklySchedule = instructor.weekly_schedule
+    ? generateScheduleWindow({
+        settings: instructor.weekly_schedule,
+        bookedLookup: occupiedSlotKeys,
+        startDate: todayDate,
+        daysAhead: 60,
+      }).map((slot) => ({
+        id: slot.id,
+        date: slot.date,
+        start_time: slot.start_time.slice(0, 5),
+        end_time: slot.end_time.slice(0, 5),
+        is_booked: slot.is_booked,
+        is_blocked: false,
+      }))
+    : []
+  const futureAvailability = (generatedFromWeeklySchedule.length > 0
+    ? generatedFromWeeklySchedule
+    : mappedAvailability.filter(slot => slot.date >= todayStr))
   const availability =
     futureAvailability.length > 0
       ? futureAvailability
@@ -172,7 +193,7 @@ async function loadInstructorProfileData(id: string) {
             }
           }
 
-          const generated: AvailabilityItem[] = []
+          const generated: AvailabilitySlot[] = []
           for (let offset = 0; offset <= 60; offset += 1) {
             const date = addDays(todayDate, offset)
             const dateStr = format(date, 'yyyy-MM-dd')
@@ -185,6 +206,7 @@ async function loadInstructorProfileData(id: string) {
                 start_time: template.start_time,
                 end_time: template.end_time,
                 is_booked: occupiedSlotKeys.has(`time:${dateStr}-${template.start_time}`),
+                is_blocked: false,
               })
             }
           }
@@ -196,12 +218,13 @@ async function loadInstructorProfileData(id: string) {
     reviews: [],
     availability,
     memberSince: String(instructorMeta?.created_at || '').slice(0, 10) || null,
+    platformSettings,
   }
 }
 
 export default async function InstructorProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const { instructor, reviews, availability, memberSince } = await loadInstructorProfileData(id)
+  const { instructor, reviews, availability, memberSince, platformSettings } = await loadInstructorProfileData(id)
   if (!instructor) notFound()
 
   return (
@@ -285,7 +308,7 @@ export default async function InstructorProfilePage({ params }: { params: Promis
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-extrabold text-gray-900">{instructor.min_advance_booking_hours ?? 2}h</p>
-                    <p className="mt-0.5 text-xs text-gray-500">Antecedencia minima</p>
+                    <p className="mt-0.5 text-xs text-gray-500">Antecedência mínima</p>
                   </div>
                 </div>
               </div>
@@ -301,9 +324,9 @@ export default async function InstructorProfilePage({ params }: { params: Promis
                 <h2 className="mb-4 text-lg font-bold text-gray-900">Detalhes da aula</h2>
                 <div className="grid grid-cols-2 gap-4">
                   <Detail label="Categoria CNH" value={`Cat. ${instructor.category} - ${VEHICLE_CATEGORY_LABELS[instructor.category]?.split('(')[0] || ''}`} />
-                  <Detail label="Veiculo" value={instructor.vehicle_brand || 'Nao informado'} />
-                  <Detail label="Tipo de veiculo" value={instructor.vehicle_type || 'Seda'} />
-                  <Detail label="Duracao da aula" value="60 minutos" />
+                  <Detail label="Veículo" value={instructor.vehicle_brand || 'Nao informado'} />
+                  <Detail label="Tipo de veículo" value={instructor.vehicle_type || 'Seda'} />
+                  <Detail label="Duração da aula" value="60 minutos" />
                   <Detail label="Local de aula" value={`${instructor.neighborhood} e arredores`} />
                   <Detail label="Total de alunos" value={`${instructor.total_lessons}+ formados`} />
                 </div>
@@ -344,7 +367,11 @@ export default async function InstructorProfilePage({ params }: { params: Promis
 
             <div className="lg:col-span-1">
               <div className="sticky top-24">
-                <BookingSection instructor={instructor} availability={availability} />
+                <BookingSection
+                  instructor={instructor}
+                  availability={availability}
+                  platformSettings={platformSettings}
+                />
               </div>
             </div>
           </div>
@@ -363,3 +390,4 @@ function Detail({ label, value }: { label: string; value: string }) {
     </div>
   )
 }
+

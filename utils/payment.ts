@@ -1,23 +1,25 @@
 import { PLATFORM_CONFIG } from '@/constants/pricing'
+import {
+  applyAmountToPlatformPaymentSplit,
+  calculatePlatformPaymentSplit,
+  type PaymentMethod,
+  type PaymentSplit,
+  type PlatformPricingSettings,
+} from '@/lib/platformPricing'
 
 /**
  * Calculate platform fee and instructor net amount for a lesson
  */
-export function calculatePaymentSplit(grossAmount: number): {
-  gross: number
-  platformFee: number
-  instructorNet: number
-  commissionRate: number
-} {
-  const platformFee = Math.round(grossAmount * PLATFORM_CONFIG.COMMISSION_RATE * 100) / 100
-  const instructorNet = Math.round((grossAmount - platformFee) * 100) / 100
+export function calculatePaymentSplit(
+  instructorNetAmount: number,
+  paymentMethod: PaymentMethod = 'pix',
+  settings?: Partial<PlatformPricingSettings> | null,
+): PaymentSplit {
+  return calculatePlatformPaymentSplit(instructorNetAmount, paymentMethod, settings)
+}
 
-  return {
-    gross: grossAmount,
-    platformFee,
-    instructorNet,
-    commissionRate: PLATFORM_CONFIG.COMMISSION_RATE,
-  }
+export function applyAmountToPaymentSplit(split: PaymentSplit, finalGrossAmount: number): PaymentSplit {
+  return applyAmountToPlatformPaymentSplit(split, finalGrossAmount)
 }
 
 /**
@@ -37,7 +39,8 @@ export function calculateMonthlyPlatformRevenue(
   totalLessonsGross: number,
   subscriptions: number
 ): { fromCommissions: number; fromSubscriptions: number; total: number } {
-  const fromCommissions = Math.round(totalLessonsGross * PLATFORM_CONFIG.COMMISSION_RATE * 100) / 100
+  const fromCommissions = 0
+  void totalLessonsGross
   const fromSubscriptions = subscriptions * PLATFORM_CONFIG.INSTRUCTOR_SUBSCRIPTION_PRICE
 
   return {

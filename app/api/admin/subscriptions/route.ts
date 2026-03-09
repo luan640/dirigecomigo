@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { normalizePlatformPricingSettings } from '@/lib/platformPricing'
 
 type AdminRoleLookup = {
   role?: string | null
@@ -52,6 +53,31 @@ export async function PATCH(req: Request) {
 
   const service = serviceClient()
   if (!service) return NextResponse.json({ error: 'SUPABASE_SERVICE_ROLE_KEY nao configurado.' }, { status: 500 })
+
+  const scope = new URL(req.url).searchParams.get('scope')
+  if (scope === 'platform-settings') {
+    const body = await req.json().catch(() => ({}))
+    const settings = normalizePlatformPricingSettings({
+      platform_fee_percent: body?.platform_fee_percent,
+      pix_fee_percent: body?.pix_fee_percent,
+      card_fee_percent: body?.card_fee_percent,
+    })
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (service as any)
+      .from('platform_settings')
+      .upsert({
+        key: 'default',
+        platform_fee_percent: settings.platform_fee_percent,
+        pix_fee_percent: settings.pix_fee_percent,
+        card_fee_percent: settings.card_fee_percent,
+      })
+      .select('platform_fee_percent,pix_fee_percent,card_fee_percent')
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json({ data: normalizePlatformPricingSettings(data), error: null })
+  }
 
   const body = await req.json().catch(() => ({}))
   const id = String(body?.id || '').trim()

@@ -1,7 +1,9 @@
 // Platform pricing constants
 export const PLATFORM_CONFIG = {
-  // Commission charged by the platform on each lesson
-  COMMISSION_RATE: 0.08, // 8%
+  // Default platform and payment-provider fees added on top of instructor net amount
+  DEFAULT_PLATFORM_FEE_PERCENT: 8,
+  DEFAULT_PIX_FEE_PERCENT: 0,
+  DEFAULT_CARD_FEE_PERCENT: 8,
 
   // Monthly instructor subscription price in BRL
   INSTRUCTOR_SUBSCRIPTION_PRICE: 15.00,

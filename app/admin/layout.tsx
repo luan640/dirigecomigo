@@ -4,7 +4,7 @@ import { LayoutDashboard, TicketPercent, ReceiptText, LogOut } from 'lucide-reac
 import Navbar from '@/components/layout/Navbar'
 
 const navItems = [
-  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin', label: 'Início', icon: LayoutDashboard },
   { href: '/admin/transacoes', label: 'Pagamentos', icon: ReceiptText },
   { href: '/admin/cupons', label: 'Cupons', icon: TicketPercent },
 ]

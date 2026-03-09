@@ -1,5 +1,6 @@
 import type { PaymentIntent, ApiResponse } from '@/types'
 import { calculatePaymentSplit } from '@/utils/payment'
+import type { PaymentMethod, PlatformPricingSettings } from '@/lib/platformPricing'
 
 /**
  * Payment provider interface — swap implementations for different gateways.
@@ -127,8 +128,8 @@ export const paymentService = {
   /**
    * Calculate the payment split before showing checkout
    */
-  calculateSplit(grossAmount: number) {
-    return calculatePaymentSplit(grossAmount)
+  calculateSplit(instructorNetAmount: number, paymentMethod: PaymentMethod = 'pix', settings?: Partial<PlatformPricingSettings> | null) {
+    return calculatePaymentSplit(instructorNetAmount, paymentMethod, settings)
   },
 
   /**
@@ -173,11 +174,17 @@ export const paymentService = {
     amount: number
     provider: string
     provider_reference?: string
+    paymentMethod?: PaymentMethod
+    platformSettings?: Partial<PlatformPricingSettings> | null
   }) {
     const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
     if (DEMO_MODE) return { data: { id: `demo-payment-${Date.now()}` }, error: null }
 
-    const { platformFee, instructorNet } = calculatePaymentSplit(params.amount)
+    const { platformFee, instructorNet } = calculatePaymentSplit(
+      params.amount,
+      params.paymentMethod || 'pix',
+      params.platformSettings,
+    )
 
     try {
       const { createBrowserClient } = await import('@supabase/ssr')

@@ -15,7 +15,6 @@ const schema = z.object({
   email: z.string().email('E-mail invalido'),
   bio: z.string().max(400, 'Maximo 400 caracteres').optional(),
   neighborhood: z.string().min(2, 'Informe o bairro'),
-  vehicle_brand: z.string().optional(),
   phone: z.string().optional(),
   service_mode: z.enum(['car', 'moto', 'both']),
   price_car: z.coerce.number().nullable(),
@@ -86,7 +85,6 @@ export default function PainelPerfilPage() {
       email: '',
       bio: '',
       neighborhood: '',
-      vehicle_brand: '',
       phone: '',
       service_mode: 'car',
       price_car: 80,
@@ -171,7 +169,6 @@ export default function PainelPerfilPage() {
           email: nextEmail,
           bio: String(data?.bio || ''),
           neighborhood: String(data?.neighborhood || ''),
-          vehicle_brand: String(data?.vehicle_brand || ''),
           phone: String(profile.phone || ''),
           service_mode: hasCar && hasMoto ? 'both' : hasMoto ? 'moto' : 'car',
           price_car: hasCar ? Number(data?.price_per_lesson_b ?? data?.price_per_lesson ?? 80) : null,
@@ -292,7 +289,6 @@ export default function PainelPerfilPage() {
         price_per_lesson: Math.min(...selectedPrices),
         price_per_lesson_a: categories.includes('A') ? values.price_moto : null,
         price_per_lesson_b: categories.includes('B') ? values.price_car : null,
-        vehicle_brand: values.vehicle_brand || null,
         vehicle_type: values.service_mode === 'both' ? 'Carro e moto' : values.service_mode === 'moto' ? 'Moto' : 'Carro',
         min_advance_booking_hours: values.min_advance_booking_hours,
         cancellation_notice_hours: values.cancellation_notice_hours,
@@ -387,7 +383,7 @@ export default function PainelPerfilPage() {
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900">Meu perfil profissional</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Esta area e diferente do cadastro inicial. Aqui voce ajusta como seu perfil aparece para os alunos.
+            Aqui voce ajusta como seu perfil aparece para os alunos.
           </p>
         </div>
         <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
@@ -474,7 +470,7 @@ export default function PainelPerfilPage() {
             <Field label="Telefone/WhatsApp" error={errors.phone?.message}>
               <input {...register('phone')} placeholder="(85) 99999-0000" className={inp} />
             </Field>
-            <Field label="Local de atuacao" error={errors.neighborhood?.message}>
+            <Field label="Sua localização" error={errors.neighborhood?.message}>
               <div className="relative">
                 <input
                   value={locationQuery}
@@ -533,13 +529,13 @@ export default function PainelPerfilPage() {
 
         <section className="space-y-4 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Servicos e precos</h2>
+            <h2 className="text-lg font-bold text-gray-900">Serviços e preços</h2>
             <p className="mt-1 text-sm text-gray-500">
-              Defina o que voce oferece hoje e quanto cobra por tipo de aula.
+              Defina o que você oferece hoje e quanto cobra por tipo de aula.
             </p>
           </div>
 
-          <Field label="Servicos oferecidos" error={errors.service_mode?.message}>
+          <Field label="Serviços oferecidos" error={errors.service_mode?.message}>
             <div className="grid gap-3 sm:grid-cols-3">
               {[
                 { value: 'car', label: 'Apenas carro' },
@@ -563,28 +559,29 @@ export default function PainelPerfilPage() {
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {(serviceMode === 'car' || serviceMode === 'both') && (
-              <Field label="Valor da aula de carro (R$)" error={errors.price_car?.message}>
+              <Field label="Quanto voce quer receber por aula de carro? (R$)" error={errors.price_car?.message}>
                 <input {...register('price_car')} type="number" min={50} className={inp} />
               </Field>
             )}
 
             {(serviceMode === 'moto' || serviceMode === 'both') && (
-              <Field label="Valor da aula de moto (R$)" error={errors.price_moto?.message}>
+              <Field label="Quanto voce quer receber por aula de moto? (R$)" error={errors.price_moto?.message}>
                 <input {...register('price_moto')} type="number" min={50} className={inp} />
               </Field>
             )}
           </div>
 
-          <Field label="Veiculo / marca / modelo" error={errors.vehicle_brand?.message}>
-            <input {...register('vehicle_brand')} placeholder="Ex: Honda City 2023" className={inp} />
-          </Field>
+          <p className="text-xs text-gray-500">
+            Esse e o valor liquido que voce quer receber. O checkout adiciona o acrescimo da plataforma conforme Pix ou cartao.
+          </p>
+
         </section>
 
         <section className="space-y-4 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
           <div>
             <h2 className="text-lg font-bold text-gray-900">Regras da agenda</h2>
             <p className="mt-1 text-sm text-gray-500">
-              Controle com quanta antecedencia o aluno pode agendar ou cancelar.
+              Controle com quanta antecedência o aluno pode agendar ou cancelar.
             </p>
           </div>
 
@@ -597,7 +594,7 @@ export default function PainelPerfilPage() {
             </Field>
           </div>
           <p className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
-            Padrao recomendado: agendamento com 2 horas de antecedencia e cancelamento ate 24 horas antes da aula.
+            Padrão recomendado: agendamento com 2 horas de antecedência e cancelamento ate 24 horas antes da aula.
           </p>
         </section>
 
@@ -606,7 +603,7 @@ export default function PainelPerfilPage() {
           disabled={loading || !isDirty || saving}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 py-3 font-bold text-white transition-colors hover:bg-blue-800 disabled:opacity-50"
         >
-          {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Carregando...</> : saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Salvando...</> : 'Salvar alteracoes'}
+          {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Carregando...</> : saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Salvando...</> : 'Salvar alterações'}
         </button>
       </form>
     </div>
@@ -624,3 +621,5 @@ function Field({ label, error, children }: { label: string; error?: string; chil
     </div>
   )
 }
+
+

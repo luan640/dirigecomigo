@@ -13,11 +13,19 @@ import Footer from '@/components/layout/Footer'
 import MercadoPagoCardBrick from '@/components/ui/MercadoPagoCardBrick'
 import { paymentService } from '@/services/paymentService'
 import { formatCurrency } from '@/utils/format'
-import { calculatePaymentSplit } from '@/utils/payment'
+import { applyAmountToPaymentSplit, calculatePaymentSplit } from '@/utils/payment'
+import { DEFAULT_PLATFORM_PRICING_SETTINGS, normalizePlatformPricingSettings, type PlatformPricingSettings } from '@/lib/platformPricing'
 import type { InstructorCard, PaymentIntent } from '@/types'
 
 type Step = 'review' | 'payment' | 'pix' | 'success'
 type PayMethod = 'card' | 'pix'
+
+function resolveLessonPrice(instructor: InstructorCard | null, category: string) {
+  if (!instructor) return 0
+  if (category === 'A') return instructor.price_per_lesson_a ?? instructor.price_per_lesson
+  if (category === 'B') return instructor.price_per_lesson_b ?? instructor.price_per_lesson
+  return instructor.price_per_lesson
+}
 
 function CheckoutContent() {
   const { id } = useParams<{ id: string }>()
@@ -42,6 +50,7 @@ function CheckoutContent() {
     discount_amount: number
     final_amount: number
   } | null>(null)
+  const [platformSettings, setPlatformSettings] = useState<PlatformPricingSettings>(DEFAULT_PLATFORM_PRICING_SETTINGS)
 
   const slotId = searchParams.get('slotId') || ''
   const bookingId = searchParams.get('bookingId') || ''
@@ -107,6 +116,32 @@ function CheckoutContent() {
     }
   }, [])
 
+  useEffect(() => {
+    let mounted = true
+
+    const loadPlatformSettings = async () => {
+      try {
+        const { createClient } = await import('@/lib/supabase/client')
+        const supabase = createClient()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data } = await (supabase as any)
+          .from('platform_settings')
+          .select('platform_fee_percent,pix_fee_percent,card_fee_percent')
+          .eq('key', 'default')
+          .maybeSingle()
+
+        if (mounted) setPlatformSettings(normalizePlatformPricingSettings(data))
+      } catch {
+        if (mounted) setPlatformSettings(DEFAULT_PLATFORM_PRICING_SETTINGS)
+      }
+    }
+
+    void loadPlatformSettings()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
   const ensureStudentPhone = () => {
     if (customerPhone.trim()) return true
 
@@ -145,6 +180,8 @@ function CheckoutContent() {
           rating: Number(data.rating || 0),
           review_count: Number(data.review_count || 0),
           price_per_lesson: Number(data.price_per_lesson || 0),
+          price_per_lesson_a: data.price_per_lesson_a !== null && data.price_per_lesson_a !== undefined ? Number(data.price_per_lesson_a) : null,
+          price_per_lesson_b: data.price_per_lesson_b !== null && data.price_per_lesson_b !== undefined ? Number(data.price_per_lesson_b) : null,
           neighborhood: String(data.neighborhood || ''),
           city: String(data.city || 'Fortaleza'),
           state: String(data.state || 'CE'),
@@ -178,10 +215,10 @@ function CheckoutContent() {
     }
   }, [id])
 
-  const instructorPrice = instructor?.price_per_lesson || 0
-  const split = calculatePaymentSplit(instructorPrice)
+  const instructorPrice = resolveLessonPrice(instructor, categoryParam)
+  const split = calculatePaymentSplit(instructorPrice, payMethod, platformSettings)
   const payableAmount = appliedCoupon?.final_amount ?? split.gross
-  const payableSplit = calculatePaymentSplit(payableAmount)
+  const payableSplit = applyAmountToPaymentSplit(split, payableAmount)
   const activeCouponCode = appliedCoupon?.code || couponCodeFromQuery
   const minAdvanceHours = instructor?.min_advance_booking_hours ?? 2
   const cancellationNoticeHours = instructor?.cancellation_notice_hours ?? 24
@@ -601,7 +638,7 @@ function CheckoutContent() {
                   <div>
                     <p className="font-bold text-gray-900">{instructor.name}</p>
                     <p className="text-sm text-gray-500">
-                      {instructor.neighborhood} · Cat. {instructor.category}
+                      {instructor.neighborhood} - Cat. {instructor.category}
                     </p>
                   </div>
                 </div>
@@ -612,12 +649,12 @@ function CheckoutContent() {
                     <span>
                       {dateStr
                         ? format(new Date(`${dateStr}T00:00:00`), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
-                        : '—'}
+                        : '-'}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Clock className="h-4 w-4 text-blue-700" />
-                    <span>{timeStr ? `${timeStr.slice(0, 5)} — 60 min` : '—'}</span>
+                    <span>{timeStr ? `${timeStr.slice(0, 5)} - 60 min` : '-'}</span>
                   </div>
                 </div>
               </div>
@@ -626,8 +663,8 @@ function CheckoutContent() {
                 <h2 className="mb-3 font-bold text-gray-900">Resumo do pagamento</h2>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between text-gray-600">
-                    <span>Aula (60 min)</span>
-                    <span>{formatCurrency(split.gross)}</span>
+                    <span>Instrutor recebe</span>
+                    <span>{formatCurrency(split.instructorNet)}</span>
                   </div>
                   {appliedCoupon && (
                     <div className="flex justify-between text-emerald-700">
@@ -636,8 +673,12 @@ function CheckoutContent() {
                     </div>
                   )}
                   <div className="flex justify-between text-xs text-gray-400">
-                    <span>Taxa da plataforma (8%)</span>
+                    <span>Taxa da plataforma ({split.platformFeeRate}%)</span>
                     <span>{formatCurrency(payableSplit.platformFee)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>Taxa do {payMethod === 'pix' ? 'Pix' : 'cartao'} ({split.paymentMethodRate}%)</span>
+                    <span>{formatCurrency(payableSplit.paymentMethodFee)}</span>
                   </div>
                   <div className="mt-2 flex justify-between border-t border-gray-100 pt-2 text-base font-extrabold text-gray-900">
                     <span>Total a pagar</span>
@@ -700,7 +741,7 @@ function CheckoutContent() {
                       Pix
                     </span>
                     <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-600">
-                      Aprovacao imediata
+                      + {platformSettings.platform_fee_percent + platformSettings.pix_fee_percent}% no checkout
                     </span>
                   </button>
 
@@ -714,7 +755,7 @@ function CheckoutContent() {
                     <span className={`text-sm font-bold ${payMethod === 'card' ? 'text-blue-700' : 'text-gray-600'}`}>
                       Cartao de credito
                     </span>
-                    <span className="text-xs font-medium text-gray-400">Mercado Pago Bricks</span>
+                    <span className="text-xs font-medium text-gray-400">Mercado Pago Bricks - + {platformSettings.platform_fee_percent + platformSettings.card_fee_percent}% no checkout</span>
                   </button>
                 </div>
               </div>
@@ -771,7 +812,7 @@ function CheckoutContent() {
               </div>
 
               <div className="flex items-center justify-between rounded-xl bg-blue-50 px-4 py-3 text-sm">
-                <span className="text-gray-600">Aula com {instructor.name} · {timeStr.slice(0, 5)}</span>
+                <span className="text-gray-600">Aula com {instructor.name} Â· {timeStr.slice(0, 5)}</span>
                 <span className="font-bold text-blue-700">{formatCurrency(payableAmount)}</span>
               </div>
 
@@ -923,3 +964,11 @@ export default function CheckoutPage() {
     </Suspense>
   )
 }
+
+
+
+
+
+
+
+

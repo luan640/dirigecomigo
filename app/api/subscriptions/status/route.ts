@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server'
-import { MercadoPagoConfig, PreApproval } from 'mercadopago'
 import Stripe from 'stripe'
 
-import { syncPreapprovalToSubscription } from '@/lib/payments/mercadoPagoSubscription'
-import { syncStripeSubscriptionToDb } from '@/lib/payments/stripeSubscription'
+import { findLatestStripeSubscriptionByEmail, syncStripeSubscriptionToDb } from '@/lib/payments/stripeSubscription'
 
 type SubscriptionStatusRow = {
   provider?: string | null
   provider_sub_id?: string | null
   amount?: number | null
+  status?: string | null
 }
 
 export async function GET() {
@@ -31,26 +30,8 @@ export async function GET() {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
-    const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN
-    if (data?.provider === 'mercadopago' && data?.provider_sub_id && accessToken) {
-      try {
-        const client = new MercadoPagoConfig({ accessToken })
-        const preapprovalClient = new PreApproval(client)
-        const preapproval = await preapprovalClient.get({ id: String(data.provider_sub_id) })
-
-        const synced = await syncPreapprovalToSubscription({
-          db,
-          preapproval: preapproval as unknown as Record<string, unknown>,
-          fallbackInstructorId: user.id,
-          fallbackAmount: Number(data.amount || 15),
-        })
-
-        if (!synced.error) {
-          return NextResponse.json({ data: synced.data || data, error: null })
-        }
-      } catch {
-        // Keep local status if Mercado Pago request fails.
-      }
+    if (data?.provider && data.provider !== 'stripe') {
+      return NextResponse.json({ error: 'Este endpoint suporta apenas assinaturas Stripe.' }, { status: 400 })
     }
 
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY
@@ -71,6 +52,29 @@ export async function GET() {
         }
       } catch {
         // Keep local status if Stripe request fails.
+      }
+    }
+
+    if (stripeSecretKey && user.email && (!data || data.status === 'cancelled' || data.status === 'expired')) {
+      try {
+        const stripe = new Stripe(stripeSecretKey)
+        const subscription = await findLatestStripeSubscriptionByEmail(stripe, user.email)
+
+        if (subscription) {
+          const synced = await syncStripeSubscriptionToDb({
+            db,
+            subscription,
+            fallbackInstructorId: user.id,
+            fallbackEmail: user.email,
+            fallbackAmount: Number(data?.amount || 15),
+          })
+
+          if (!synced.error) {
+            return NextResponse.json({ data: synced.data || data, error: null })
+          }
+        }
+      } catch {
+        // Keep local status if Stripe recovery fails.
       }
     }
 

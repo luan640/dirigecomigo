@@ -4,7 +4,7 @@ import { LayoutDashboard, BookOpen, User, LogOut } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 
 const navItems = [
-  { href: '/aluno/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/aluno/dashboard', label: 'Início', icon: LayoutDashboard },
   { href: '/aluno/aulas', label: 'Minhas aulas', icon: BookOpen },
   { href: '/aluno/perfil', label: 'Perfil', icon: User },
 ]

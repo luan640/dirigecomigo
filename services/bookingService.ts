@@ -1,6 +1,7 @@
 import type { ApiResponse, BookingStatus } from '@/types'
 import { MOCK_STUDENT_BOOKINGS, MOCK_INSTRUCTOR_BOOKINGS } from '@/lib/mock-data'
 import { calculatePaymentSplit } from '@/utils/payment'
+import type { PaymentMethod, PlatformPricingSettings } from '@/lib/platformPricing'
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
 
@@ -13,6 +14,8 @@ export interface CreateBookingParams {
   end_time: string
   gross_amount: number
   notes?: string
+  payment_method?: PaymentMethod
+  platform_settings?: Partial<PlatformPricingSettings> | null
 }
 
 /**
@@ -33,7 +36,11 @@ export const bookingService = {
       const { createClient } = await import('@/lib/supabase/server')
       const supabase = await createClient()
 
-      const { platformFee, instructorNet } = calculatePaymentSplit(params.gross_amount)
+      const { platformFee, instructorNet } = calculatePaymentSplit(
+        params.gross_amount,
+        params.payment_method || 'pix',
+        params.platform_settings,
+      )
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase as any)

@@ -3,6 +3,17 @@ import Stripe from 'stripe'
 
 import { syncStripeSubscriptionToDb } from '@/lib/payments/stripeSubscription'
 
+async function resolveCustomerEmail(stripe: Stripe, customerId: string | Stripe.Customer | Stripe.DeletedCustomer | null) {
+  if (!customerId) return null
+  if (typeof customerId !== 'string') {
+    return 'email' in customerId ? String(customerId.email || '').trim() || null : null
+  }
+
+  const customer = await stripe.customers.retrieve(customerId)
+  if (customer.deleted) return null
+  return String(customer.email || '').trim() || null
+}
+
 export async function GET(req: Request) {
   try {
     const { createClient } = await import('@/lib/supabase/server')
@@ -31,7 +42,13 @@ export async function GET(req: Request) {
       ? await stripe.subscriptions.retrieve(session.subscription)
       : session.subscription
 
-    const customerEmail = String(session.customer_details?.email || session.customer_email || user.email || '').trim() || undefined
+    const customerEmail = String(
+      session.customer_details?.email ||
+      session.customer_email ||
+      await resolveCustomerEmail(stripe, session.customer) ||
+      user.email ||
+      '',
+    ).trim() || undefined
     const fallbackInstructorId = String(session.client_reference_id || session.metadata?.instructor_id || user.id).trim() || user.id
 
     const synced = await syncStripeSubscriptionToDb({

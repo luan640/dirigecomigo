@@ -52,6 +52,22 @@ function mapStripeSubscriptionStatus(status?: Stripe.Subscription.Status): 'acti
   }
 }
 
+export function isReusableStripeSubscriptionStatus(status?: Stripe.Subscription.Status) {
+  switch (status) {
+    case 'active':
+    case 'trialing':
+    case 'incomplete':
+    case 'past_due':
+    case 'paused':
+    case 'unpaid':
+      return true
+    case 'canceled':
+    case 'incomplete_expired':
+    default:
+      return false
+  }
+}
+
 function toDateString(unixSeconds?: number | null) {
   if (!unixSeconds) return null
   return format(new Date(unixSeconds * 1000), 'yyyy-MM-dd')
@@ -71,6 +87,27 @@ function resolveSubscriptionPeriod(subscription: Stripe.Subscription) {
     currentPeriodStart,
     currentPeriodEnd,
   }
+}
+
+export async function findLatestStripeSubscriptionByEmail(stripe: Stripe, email: string) {
+  const normalizedEmail = email.trim().toLowerCase()
+  if (!normalizedEmail) return null
+
+  const customers = await stripe.customers.list({
+    email: normalizedEmail,
+    limit: 10,
+  })
+  const customer = customers.data.find((entry) => !entry.deleted)
+  if (!customer || customer.deleted) return null
+
+  const subscriptions = await stripe.subscriptions.list({
+    customer: customer.id,
+    status: 'all',
+    limit: 10,
+  })
+
+  const sorted = [...subscriptions.data].sort((a, b) => b.created - a.created)
+  return sorted[0] || null
 }
 
 async function resolveInstructorId(db: DbClient, args: {

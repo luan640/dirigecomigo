@@ -196,6 +196,19 @@ export default function Navbar() {
             <hr className="my-2 border-gray-100" />
             {user ? (
               <>
+                <div className="px-3 py-2">
+                  <div className="flex items-center gap-3 rounded-lg bg-gray-50 px-3 py-2.5">
+                    <div className="w-9 h-9 bg-violet-100 rounded-full flex items-center justify-center text-violet-700 font-semibold text-sm">
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {user.role === 'instructor' ? 'Instrutor' : 'Aluno'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
                 <Link
                   href={dashboardHref}
                   className="px-3 py-2.5 text-sm font-medium text-violet-600 hover:bg-violet-50 rounded-lg"
@@ -203,6 +216,20 @@ export default function Navbar() {
                 >
                   Meu painel
                 </Link>
+                <Link
+                  href="/perfil"
+                  className="px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  Perfil
+                </Link>
+                <button
+                  onClick={handleSignOut}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg"
+                >
+                  <LogIn className="w-4 h-4" />
+                  Sair
+                </button>
               </>
             ) : (
               <div className="flex flex-col gap-2 pt-1">

@@ -145,11 +145,11 @@ export default async function CarteiraPage() {
   const totalReceived = entries.reduce((sum, entry) => sum + entry.amount, 0)
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="w-full space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900">Carteira</h1>
-          <p className="mt-1 text-sm text-gray-500">Acompanhe seu saldo e o historico real dos pagamentos recebidos.</p>
+          <p className="mt-1 text-sm text-gray-500">Acompanhe seu saldo e o histórico real dos pagamentos recebidos.</p>
         </div>
         <button
           type="button"
@@ -162,9 +162,9 @@ export default async function CarteiraPage() {
       </div>
 
       <section className="grid gap-4 md:grid-cols-3">
-        <SummaryCard title="Saldo em carteira" value={formatCurrency(availableBalance)} hint="Valor de aulas concluidas e pagas." icon={Wallet} />
+        <SummaryCard title="Saldo em carteira" value={formatCurrency(availableBalance)} hint="Valor de aulas concluídas e pagas." icon={Wallet} />
         <SummaryCard title="A liberar" value={formatCurrency(pendingBalance)} hint="Pagamentos recebidos de aulas ainda nao concluidas." icon={Clock3} />
-        <SummaryCard title="Total recebido" value={formatCurrency(totalReceived)} hint="Soma do liquido do instrutor nos pagamentos pagos." icon={ArrowDownToLine} />
+        <SummaryCard title="Total recebido" value={formatCurrency(totalReceived)} hint="Soma do líquido do instrutor nos pagamentos pagos." icon={ArrowDownToLine} />
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">

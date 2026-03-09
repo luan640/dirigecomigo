@@ -1,4 +1,5 @@
 import type { Database, BookingStatus, PaymentStatus, SubscriptionStatus, VehicleCategory } from './database'
+import type { WeeklyScheduleSettings } from '@/lib/schedule'
 
 // Row types from database
 export type Profile = Database['public']['Tables']['profiles']['Row']
@@ -8,6 +9,7 @@ export type InstructorAvailability = Database['public']['Tables']['instructor_av
 export type Booking = Database['public']['Tables']['bookings']['Row']
 export type Payment = Database['public']['Tables']['payments']['Row']
 export type Subscription = Database['public']['Tables']['subscriptions']['Row']
+export type PlatformSettings = Database['public']['Tables']['platform_settings']['Row']
 export type Review = Database['public']['Tables']['reviews']['Row']
 
 // Enriched types used throughout the app
@@ -36,6 +38,8 @@ export interface InstructorCard {
   rating: number
   review_count: number
   price_per_lesson: number
+  price_per_lesson_a?: number | null
+  price_per_lesson_b?: number | null
   neighborhood: string
   city: string
   state: string
@@ -47,6 +51,7 @@ export interface InstructorCard {
   total_lessons: number
   latitude: number | null
   longitude: number | null
+  weekly_schedule?: WeeklyScheduleSettings | null
   is_verified: boolean
   available_today: boolean
   availability_label: 'available' | 'limited' | 'unavailable'
@@ -115,7 +120,6 @@ export interface InstructorSearchFilters {
   longitude?: number
   min_price?: number
   max_price?: number
-  min_rating?: number
   available_today?: boolean
   category?: VehicleCategory
 }

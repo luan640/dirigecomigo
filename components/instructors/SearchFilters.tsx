@@ -190,26 +190,6 @@ export function SearchFilters({ filters, onChange, onClose }: SearchFiltersProps
       </div>
 
       <div>
-        <label className="mb-2 block text-sm font-semibold text-gray-700">Avaliacao minima</label>
-        <div className="flex gap-2">
-          {[4.0, 4.5, 4.8].map(rating => (
-            <button
-              key={rating}
-              onClick={() => update('min_rating', filters.min_rating === rating ? undefined : rating)}
-              className={cn(
-                'flex-1 rounded-xl border py-2 text-sm font-medium transition-colors',
-                filters.min_rating === rating
-                  ? 'border-violet-600 bg-violet-50 text-violet-700'
-                  : 'border-gray-200 text-gray-600 hover:border-gray-300',
-              )}
-            >
-              * {rating}+
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div>
         <label className="mb-2 block text-sm font-semibold text-gray-700">Disponibilidade</label>
         <label className="flex cursor-pointer items-center gap-3">
           <div

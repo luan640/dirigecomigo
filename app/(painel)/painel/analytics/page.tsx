@@ -1,6 +1,5 @@
-import { subMonths } from 'date-fns'
+import { subMonths, format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { format } from 'date-fns'
 
 import AnalyticsCharts from './AnalyticsCharts'
 import { formatCurrency } from '@/utils/format'
@@ -14,10 +13,6 @@ type BookingRow = {
   gross_amount?: number | string
   platform_fee?: number | string
   instructor_net?: number | string
-}
-
-type InstructorRow = {
-  rating?: number | string
 }
 
 function toNumber(value: unknown) {
@@ -46,13 +41,13 @@ export default async function AnalyticsPage() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
-  const [{ data: bookings }, { data: instructor }] = await Promise.all([
-    db.from('bookings').select('*').eq('instructor_id', user.id).order('created_at', { ascending: true }),
-    db.from('instructors').select('rating').eq('id', user.id).maybeSingle(),
-  ])
+  const { data: bookings } = await db
+    .from('bookings')
+    .select('*')
+    .eq('instructor_id', user.id)
+    .order('created_at', { ascending: true })
 
   const bookingRows: BookingRow[] = Array.isArray(bookings) ? bookings : []
-  const instructorRow: InstructorRow | null = instructor || null
   const today = new Date()
   const sixMonthsStart = subMonths(today, 5)
 
@@ -68,7 +63,7 @@ export default async function AnalyticsPage() {
     }
   })
 
-  const monthlyMap = new Map(monthlyBuckets.map(item => [item.key, item]))
+  const monthlyMap = new Map(monthlyBuckets.map((item) => [item.key, item]))
 
   for (const row of bookingRows) {
     if (!isValidActiveBooking(row)) continue
@@ -90,7 +85,7 @@ export default async function AnalyticsPage() {
     end.setDate(today.getDate() - (3 - index) * 7)
     const start = new Date(end)
     start.setDate(end.getDate() - 6)
-    const aulas = bookingRows.filter(row => {
+    const aulas = bookingRows.filter((row) => {
       if (!isValidActiveBooking(row)) return false
       const dateStr = getBookingDate(row)
       if (!dateStr) return false
@@ -104,7 +99,7 @@ export default async function AnalyticsPage() {
     }
   })
 
-  const lastSixMonthsRows = bookingRows.filter(row => {
+  const lastSixMonthsRows = bookingRows.filter((row) => {
     if (!isValidActiveBooking(row)) return false
     const dateStr = getBookingDate(row)
     if (!dateStr) return false
@@ -118,24 +113,22 @@ export default async function AnalyticsPage() {
     return acc + toNumber(row.instructor_net || gross - toNumber(row.platform_fee))
   }, 0)
   const totalLessons = lastSixMonthsRows.length
-  const upcomingBookings = bookingRows.filter(row => {
+  const upcomingBookings = bookingRows.filter((row) => {
     const status = String(row.status || '')
     if (status !== 'confirmed' && status !== 'pending') return false
     const dateStr = getBookingDate(row)
     return Boolean(dateStr) && dateStr >= format(today, 'yyyy-MM-dd')
   }).length
-  const avgRating = toNumber(instructorRow?.rating)
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="w-full space-y-6">
       <h1 className="text-2xl font-extrabold text-gray-900">Relatorios</h1>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
           { label: 'Receita bruta (6m)', value: formatCurrency(totalGross) },
           { label: 'Receita liquida (6m)', value: formatCurrency(totalNet), note: 'Valor do instrutor' },
           { label: 'Total de aulas (6m)', value: String(totalLessons) },
-          { label: 'Avaliacao media', value: avgRating > 0 ? `${avgRating.toFixed(1)}*` : '-' },
           { label: 'Proximas aulas', value: String(upcomingBookings) },
         ].map(({ label, value, note }) => (
           <div key={label} className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
@@ -147,7 +140,7 @@ export default async function AnalyticsPage() {
       </div>
 
       <AnalyticsCharts
-        monthlyData={monthlyBuckets.map(item => ({
+        monthlyData={monthlyBuckets.map((item) => ({
           month: item.month.charAt(0).toUpperCase() + item.month.slice(1),
           gross: item.gross,
           net: item.net,

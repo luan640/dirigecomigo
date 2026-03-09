@@ -1,16 +1,24 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
+import Stripe from 'stripe'
 import {
-  LayoutDashboard, CalendarDays, Clock4, User, BarChart2,
-  CreditCard, LogOut, Package, Wallet
+  BarChart2,
+  CalendarDays,
+  Clock4,
+  CreditCard,
+  LayoutDashboard,
+  LogOut,
+  User,
+  Wallet,
 } from 'lucide-react'
+
 import Navbar from '@/components/layout/Navbar'
+import { findLatestStripeSubscriptionByEmail, syncStripeSubscriptionToDb } from '@/lib/payments/stripeSubscription'
 
 const navItems = [
-  { href: '/painel/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/painel/dashboard', label: 'Início', icon: LayoutDashboard },
   { href: '/painel/agenda', label: 'Agenda', icon: CalendarDays },
   { href: '/painel/horarios', label: 'Horários', icon: Clock4 },
-  { href: '/painel/pacotes', label: 'Pacotes', icon: Package },
   { href: '/painel/carteira', label: 'Carteira', icon: Wallet },
   { href: '/painel/analytics', label: 'Relatórios', icon: BarChart2 },
   { href: '/painel/perfil', label: 'Meu perfil', icon: User },
@@ -37,10 +45,33 @@ async function hasActiveSubscription() {
       .limit(1)
       .maybeSingle()
 
-    if (!sub || sub.status !== 'active') return false
-    const endDateRaw = sub.current_period_end || sub.expires_at
-    if (!endDateRaw) return false
+    if (sub?.status === 'active') {
+      const endDateRaw = sub.current_period_end || sub.expires_at
+      if (!endDateRaw) return false
 
+      const today = new Date().toISOString().split('T')[0]
+      return String(endDateRaw).slice(0, 10) >= today
+    }
+
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+    if (!stripeSecretKey || !user.email) return false
+
+    const stripe = new Stripe(stripeSecretKey)
+    const remoteSubscription = await findLatestStripeSubscriptionByEmail(stripe, user.email)
+    if (!remoteSubscription) return false
+
+    const synced = await syncStripeSubscriptionToDb({
+      db: supabase,
+      subscription: remoteSubscription,
+      fallbackInstructorId: user.id,
+      fallbackEmail: user.email,
+      fallbackAmount: Number(sub?.amount || 15),
+    })
+    const nextSub = synced.error ? sub : synced.data
+    if (!nextSub || nextSub.status !== 'active') return false
+
+    const endDateRaw = nextSub.current_period_end || nextSub.expires_at
+    if (!endDateRaw) return false
     const today = new Date().toISOString().split('T')[0]
     return String(endDateRaw).slice(0, 10) >= today
   } catch {
@@ -50,66 +81,63 @@ async function hasActiveSubscription() {
 
 export default async function PainelLayout({ children }: { children: ReactNode }) {
   const isUnlocked = await hasActiveSubscription()
+
   return (
     <>
       <Navbar />
       <div className="flex min-h-[calc(100vh-64px)] bg-gray-50">
-        {/* Sidebar */}
-        <aside className="hidden md:flex flex-col w-56 bg-white border-r border-gray-100 py-6 px-3 shrink-0">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest px-3 mb-3">Instrutor</p>
-          <nav className="space-y-0.5 flex-1">
-            {navItems.map(({ href, label, icon: Icon }) => (
-              (() => {
-                const isSubscriptionPage = href === '/painel/assinatura'
-                const locked = !isUnlocked && !isSubscriptionPage
-                return (
-              <Link
-                key={href}
-                href={locked ? '/painel/assinatura' : href}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  locked
-                    ? 'text-gray-400 bg-gray-50'
-                    : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {label}
-                {locked ? <span className="ml-auto text-[10px] font-bold uppercase">Bloqueado</span> : null}
-              </Link>
-                )
-              })()
-            ))}
+        <aside className="hidden w-56 shrink-0 flex-col border-r border-gray-100 bg-white px-3 py-6 md:flex">
+          <p className="mb-3 px-3 text-xs font-bold uppercase tracking-widest text-gray-400">Instrutor</p>
+          <nav className="flex-1 space-y-0.5">
+            {navItems.map(({ href, label, icon: Icon }) => {
+              const isSubscriptionPage = href === '/painel/assinatura'
+              const locked = !isUnlocked && !isSubscriptionPage
+
+              return (
+                <Link
+                  key={href}
+                  href={locked ? '/painel/assinatura' : href}
+                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    locked
+                      ? 'bg-gray-50 text-gray-400'
+                      : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                  {locked ? <span className="ml-auto text-[10px] font-bold uppercase">Bloqueado</span> : null}
+                </Link>
+              )
+            })}
           </nav>
           <Link
             href="/entrar"
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-400 hover:text-red-600 transition-colors"
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-400 transition-colors hover:text-red-600"
           >
-            <LogOut className="w-4 h-4" /> Sair
+            <LogOut className="h-4 w-4" /> Sair
           </Link>
         </aside>
 
-        {/* Mobile bottom nav */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex z-40 overflow-x-auto">
-          {navItems.slice(0, 5).map(({ href, label, icon: Icon }) => (
-            (() => {
-              const locked = !isUnlocked && href !== '/painel/assinatura'
-              return (
-            <Link
-              key={href}
-              href={locked ? '/painel/assinatura' : href}
-              className={`flex-1 flex flex-col items-center py-2 text-xs min-w-[3.5rem] ${
-                locked ? 'text-gray-300' : 'text-gray-500 hover:text-blue-700'
-              }`}
-            >
-              <Icon className="w-5 h-5 mb-0.5" />
-              <span className="truncate w-full text-center px-1">{label}</span>
-            </Link>
-              )
-            })()
-          ))}
+        <nav className="fixed bottom-0 left-0 right-0 z-40 flex overflow-x-auto border-t border-gray-100 bg-white md:hidden">
+          {navItems.slice(0, 5).map(({ href, label, icon: Icon }) => {
+            const locked = !isUnlocked && href !== '/painel/assinatura'
+
+            return (
+              <Link
+                key={href}
+                href={locked ? '/painel/assinatura' : href}
+                className={`flex min-w-[3.5rem] flex-1 flex-col items-center py-2 text-xs ${
+                  locked ? 'text-gray-300' : 'text-gray-500 hover:text-blue-700'
+                }`}
+              >
+                <Icon className="mb-0.5 h-5 w-5" />
+                <span className="w-full truncate px-1 text-center">{label}</span>
+              </Link>
+            )
+          })}
         </nav>
 
-        <main className="flex-1 py-6 px-4 sm:px-6 pb-20 md:pb-6">{children}</main>
+        <main className="flex-1 px-4 py-6 pb-20 sm:px-6 md:pb-6">{children}</main>
       </div>
     </>
   )

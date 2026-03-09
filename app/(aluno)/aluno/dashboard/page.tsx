@@ -110,12 +110,12 @@ export default async function StudentDashboardPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold text-gray-900">Bem-vindo, {studentName}!</h1>
-        <p className="mt-1 text-sm text-gray-500">Acompanhe suas aulas e horarios agendados.</p>
+        <p className="mt-1 text-sm text-gray-500">Acompanhe suas aulas e horários agendados.</p>
       </div>
 
       <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-gray-50 px-5 py-4">
-          <h2 className="font-bold text-gray-900">Proximas aulas</h2>
+          <h2 className="font-bold text-gray-900">Próximas aulas</h2>
           <Link href="/aluno/aulas" className="flex items-center gap-1 text-sm text-blue-700 hover:underline">
             Ver todas <ArrowRight className="h-3.5 w-3.5" />
           </Link>

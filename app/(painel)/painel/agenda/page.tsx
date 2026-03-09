@@ -107,7 +107,7 @@ export default async function PainelAgendaPage() {
   const bookings = await loadBookings()
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
+    <div className="w-full space-y-5">
       <h1 className="text-2xl font-extrabold text-gray-900">Agenda</h1>
       <AgendaClient bookings={bookings} />
     </div>

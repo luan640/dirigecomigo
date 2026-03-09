@@ -31,9 +31,6 @@ export const instructorService = {
       if (filters?.max_price !== undefined) {
         results = results.filter(i => i.price_per_lesson <= filters.max_price!)
       }
-      if (filters?.min_rating !== undefined) {
-        results = results.filter(i => i.rating >= filters.min_rating!)
-      }
       if (filters?.available_today) {
         results = results.filter(i => i.available_today)
       }
@@ -61,8 +58,6 @@ export const instructorService = {
       if (filters?.city) query = query.ilike('city', `%${filters.city}%`)
       if (filters?.min_price) query = query.gte('price_per_lesson', filters.min_price)
       if (filters?.max_price) query = query.lte('price_per_lesson', filters.max_price)
-      if (filters?.min_rating) query = query.gte('rating', filters.min_rating)
-
       const { data, error } = await query.order('rating', { ascending: false })
 
       if (error) throw error

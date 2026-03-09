@@ -9,13 +9,15 @@ import { CheckCircle2, ChevronRight, Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { BRAZIL_STATES } from '@/constants/locations'
+import { geocodeCepAction } from '@/lib/location'
 import { createClient } from '@/lib/supabase/client'
 import { deleteAvatarAction, uploadAvatarAction } from '@/app/(painel)/painel/perfil/actions'
 
 const instructorSchema = z.object({
   full_name: z.string().min(3, 'Informe seu nome completo'),
-  email: z.string().email('E-mail invalido'),
-  phone: z.string().min(10, 'Telefone invalido'),
+  email: z.string().email('E-mail inválido'),
+  phone: z.string().min(10, 'Telefone inválido'),
+  neighborhood: z.string().min(2, 'Informe o sua localização'),
   service_mode: z.enum(['car', 'moto', 'both']),
   price_car: z.coerce.number().nullable(),
   price_moto: z.coerce.number().nullable(),
@@ -57,6 +59,19 @@ type OnboardingInstructorRow = {
   price_per_lesson?: number | null
   price_per_lesson_a?: number | null
   price_per_lesson_b?: number | null
+  neighborhood?: string | null
+  city?: string | null
+  state?: string | null
+  latitude?: number | null
+  longitude?: number | null
+}
+
+type AddressSuggestion = {
+  cep: string
+  logradouro: string
+  bairro: string
+  localidade: string
+  uf: string
 }
 
 function getFallbackLetter(name: string) {
@@ -74,6 +89,14 @@ function OnboardingContent() {
   const [originalAvatarUrl, setOriginalAvatarUrl] = useState<string | null>(null)
   const [avatarRemoved, setAvatarRemoved] = useState(false)
   const [avatarFallbackLetter, setAvatarFallbackLetter] = useState('I')
+  const [locationQuery, setLocationQuery] = useState('')
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false)
+  const [locationSuggestions, setLocationSuggestions] = useState<AddressSuggestion[]>([])
+  const [loadingLocationSuggestions, setLoadingLocationSuggestions] = useState(false)
+  const [selectedCity, setSelectedCity] = useState('Fortaleza')
+  const [selectedState, setSelectedState] = useState('CE')
+  const [selectedLatitude, setSelectedLatitude] = useState<number | null>(null)
+  const [selectedLongitude, setSelectedLongitude] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const instructorForm = useForm<InstructorFormData>({
@@ -83,6 +106,7 @@ function OnboardingContent() {
       full_name: '',
       email: '',
       phone: '',
+      neighborhood: '',
       service_mode: 'car',
       price_car: 80,
       price_moto: null,
@@ -93,6 +117,57 @@ function OnboardingContent() {
     resolver: zodResolver(studentSchema),
     defaultValues: { city: 'Fortaleza', state: 'CE', phone: '' },
   })
+
+  useEffect(() => {
+    if (role !== 'instructor') return
+
+    const query = locationQuery.trim()
+    if (!showLocationSuggestions || query.length < 3) {
+      setLocationSuggestions([])
+      setLoadingLocationSuggestions(false)
+      return
+    }
+
+    let active = true
+    setLoadingLocationSuggestions(true)
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const encodedQuery = encodeURIComponent(query)
+        const urls = [
+          `https://viacep.com.br/ws/CE/Fortaleza/${encodedQuery}/json/`,
+          `https://viacep.com.br/ws/CE/Caucaia/${encodedQuery}/json/`,
+        ]
+
+        const responses = await Promise.all(urls.map(url => fetch(url, { cache: 'no-store' })))
+        const payloads = await Promise.all(
+          responses.map(async response => {
+            if (!response.ok) return []
+            const data = await response.json()
+            return Array.isArray(data) ? data : []
+          }),
+        )
+
+        if (!active) return
+
+        const merged = payloads
+          .flat()
+          .filter((item): item is AddressSuggestion => Boolean(item?.cep && item?.bairro && item?.localidade))
+          .slice(0, 10)
+
+        setLocationSuggestions(merged)
+      } catch {
+        if (active) setLocationSuggestions([])
+      } finally {
+        if (active) setLoadingLocationSuggestions(false)
+      }
+    }, 300)
+
+    return () => {
+      active = false
+      window.clearTimeout(timer)
+    }
+  }, [locationQuery, role, showLocationSuggestions])
 
   useEffect(() => {
     if (role !== 'instructor') return
@@ -136,11 +211,21 @@ function OnboardingContent() {
           full_name: fullName,
           email,
           phone,
+          neighborhood: String(instructor?.neighborhood || ''),
           service_mode: hasCar && hasMoto ? 'both' : hasMoto ? 'moto' : 'car',
           price_car: hasCar ? Number(instructor?.price_per_lesson_b ?? instructor?.price_per_lesson ?? 80) : null,
           price_moto: hasMoto ? Number(instructor?.price_per_lesson_a ?? instructor?.price_per_lesson ?? 80) : null,
         })
 
+        setLocationQuery(
+          [String(instructor?.neighborhood || '').trim(), String(instructor?.city || '').trim()]
+            .filter(Boolean)
+            .join(', '),
+        )
+        setSelectedCity(String(instructor?.city || 'Fortaleza'))
+        setSelectedState(String(instructor?.state || 'CE'))
+        setSelectedLatitude(instructor?.latitude !== null && instructor?.latitude !== undefined ? Number(instructor.latitude) : null)
+        setSelectedLongitude(instructor?.longitude !== null && instructor?.longitude !== undefined ? Number(instructor.longitude) : null)
         setAvatarUrl(nextAvatarUrl)
         setOriginalAvatarUrl(nextAvatarUrl)
         setAvatarRemoved(false)
@@ -219,6 +304,12 @@ function OnboardingContent() {
         (item): item is number => typeof item === 'number' && item >= 50,
       )
       const pricePerLesson = Math.min(...selectedPrices)
+      if (selectedLatitude === null || selectedLongitude === null) {
+        throw new Error('Selecione um local valido para preencher latitude e longitude.')
+      }
+      if (!selectedCity || !selectedState) {
+        throw new Error('Selecione um local valido em Fortaleza ou Caucaia.')
+      }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const instructorPayload: any = {
@@ -230,9 +321,11 @@ function OnboardingContent() {
         price_per_lesson_a: categories.includes('A') ? values.price_moto : null,
         price_per_lesson_b: categories.includes('B') ? values.price_car : null,
         vehicle_type: values.service_mode === 'both' ? 'Carro e moto' : values.service_mode === 'moto' ? 'Moto' : 'Carro',
-        neighborhood: 'A definir',
-        city: 'Fortaleza',
-        state: 'CE',
+        neighborhood: values.neighborhood,
+        city: selectedCity,
+        state: selectedState,
+        latitude: selectedLatitude,
+        longitude: selectedLongitude,
         is_active: true,
       }
 
@@ -351,6 +444,31 @@ function OnboardingContent() {
     setAvatarRemoved(true)
   }
 
+  async function handleSelectLocation(address: AddressSuggestion) {
+    setLocationQuery(`${address.logradouro || address.bairro} - ${address.bairro}, ${address.localidade}`)
+    instructorForm.setValue('neighborhood', address.bairro, { shouldDirty: true, shouldValidate: true })
+    setSelectedCity(address.localidade)
+    setSelectedState(address.uf)
+    setShowLocationSuggestions(false)
+
+    try {
+      const geocoded = await geocodeCepAction(address.cep)
+      if (!geocoded) {
+        setSelectedLatitude(null)
+        setSelectedLongitude(null)
+        toast.error('Nao foi possivel obter latitude e longitude para esse endereco.')
+        return
+      }
+
+      setSelectedLatitude(geocoded.latitude)
+      setSelectedLongitude(geocoded.longitude)
+    } catch {
+      setSelectedLatitude(null)
+      setSelectedLongitude(null)
+      toast.error('Nao foi possivel obter latitude e longitude para esse endereco.')
+    }
+  }
+
   if (done) {
     return (
       <div className="py-6 text-center">
@@ -462,7 +580,59 @@ function OnboardingContent() {
             </Field>
           </div>
 
-          <Field label="Servicos oferecidos" error={instructorForm.formState.errors.service_mode?.message}>
+          <Field label="Sua localização" error={instructorForm.formState.errors.neighborhood?.message}>
+            <div className="relative">
+              <input
+                value={locationQuery}
+                onChange={event => {
+                  const value = event.target.value
+                  setLocationQuery(value)
+                  instructorForm.setValue('neighborhood', value, { shouldDirty: true, shouldValidate: true })
+                  setSelectedCity('')
+                  setSelectedState('')
+                  setSelectedLatitude(null)
+                  setSelectedLongitude(null)
+                  setShowLocationSuggestions(true)
+                }}
+                onFocus={() => setShowLocationSuggestions(true)}
+                onBlur={() => {
+                  window.setTimeout(() => setShowLocationSuggestions(false), 120)
+                }}
+                placeholder="Busque rua, bairro ou localidade"
+                className={inputClassName}
+              />
+              <input type="hidden" {...instructorForm.register('neighborhood')} />
+              {showLocationSuggestions && (loadingLocationSuggestions || locationSuggestions.length > 0) && (
+                <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+                  {loadingLocationSuggestions && (
+                    <div className="px-4 py-3 text-sm text-gray-500">Buscando em Fortaleza e Caucaia...</div>
+                  )}
+                  {!loadingLocationSuggestions && locationSuggestions.map(item => (
+                    <button
+                      key={`${item.cep}-${item.logradouro}-${item.bairro}`}
+                      type="button"
+                      onMouseDown={event => {
+                        event.preventDefault()
+                        void handleSelectLocation(item)
+                      }}
+                      className="block w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-blue-50"
+                    >
+                      <span className="block font-medium text-gray-900">{item.logradouro || item.bairro}</span>
+                      <span className="block text-xs text-gray-500">{item.bairro} · {item.localidade} · CEP {item.cep}</span>
+                    </button>
+                  ))}
+                  {!loadingLocationSuggestions && locationSuggestions.length === 0 && locationQuery.trim().length >= 3 && (
+                    <div className="px-4 py-3 text-sm text-gray-500">Nenhum endereco encontrado em Fortaleza ou Caucaia.</div>
+                  )}
+                </div>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-gray-400">
+              A selecao preenche bairro, cidade, estado e coordenadas do mapa.
+            </p>
+          </Field>
+
+          <Field label="Serviços oferecidos" error={instructorForm.formState.errors.service_mode?.message}>
             <div className="grid gap-3 sm:grid-cols-3">
               {[
                 { value: 'car', label: 'Apenas carro' },
@@ -491,7 +661,7 @@ function OnboardingContent() {
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {(instructorForm.watch('service_mode') === 'car' || instructorForm.watch('service_mode') === 'both') && (
-              <Field label="Valor da aula de carro (R$)" error={instructorForm.formState.errors.price_car?.message}>
+              <Field label="Quanto voce quer receber por aula de carro? (R$)" error={instructorForm.formState.errors.price_car?.message}>
                 <input
                   {...instructorForm.register('price_car')}
                   type="number"
@@ -502,7 +672,7 @@ function OnboardingContent() {
             )}
 
             {(instructorForm.watch('service_mode') === 'moto' || instructorForm.watch('service_mode') === 'both') && (
-              <Field label="Valor da aula de moto (R$)" error={instructorForm.formState.errors.price_moto?.message}>
+              <Field label="Quanto voce quer receber por aula de moto? (R$)" error={instructorForm.formState.errors.price_moto?.message}>
                 <input
                   {...instructorForm.register('price_moto')}
                   type="number"
@@ -512,6 +682,10 @@ function OnboardingContent() {
               </Field>
             )}
           </div>
+
+          <p className="text-xs text-gray-500">
+            Informe o valor liquido que voce quer receber. O aluno vera o acrescimo no checkout conforme Pix ou cartao.
+          </p>
 
           <button
             type="submit"
@@ -544,6 +718,10 @@ function OnboardingContent() {
               </select>
             </Field>
           </div>
+
+          <p className="text-xs text-gray-500">
+            Informe o valor liquido que voce quer receber. O aluno vera o acrescimo no checkout conforme Pix ou cartao.
+          </p>
 
           <button
             type="submit"
@@ -588,3 +766,5 @@ function Field({ label, error, children }: { label: string; error?: string; chil
 }
 
 const inputClassName = 'w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
+
+

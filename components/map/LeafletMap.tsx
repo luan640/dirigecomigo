@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { Circle, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
 import type { InstructorCard } from '@/types'
 import { formatCurrency } from '@/utils/format'
+import { normalizePlatformPricingSettings, type PlatformPricingSettings } from '@/lib/platformPricing'
 import L from 'leaflet'
 import { MapPin } from 'lucide-react'
 import { FORTALEZA_CENTER, FORTALEZA_DEFAULT_ZOOM } from '@/constants/locations'
@@ -11,6 +12,7 @@ import { FORTALEZA_CENTER, FORTALEZA_DEFAULT_ZOOM } from '@/constants/locations'
 interface LeafletMapProps {
   instructors: InstructorCard[]
   height?: string
+  platformSettings?: Partial<PlatformPricingSettings> | null
   focusLocation?: {
     latitude: number
     longitude: number
@@ -74,7 +76,12 @@ function MapFocusController({ focusLocation }: { focusLocation?: { latitude: num
   return null
 }
 
-export default function LeafletMap({ instructors, height = '480px', focusLocation }: LeafletMapProps) {
+export default function LeafletMap({
+  instructors,
+  height = '480px',
+  platformSettings,
+  focusLocation,
+}: LeafletMapProps) {
   // Fix Leaflet default icon path issue with Next.js/webpack
   useEffect(() => {
     delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl
@@ -88,6 +95,7 @@ export default function LeafletMap({ instructors, height = '480px', focusLocatio
   const instructorsWithCoords = instructors.filter(
     i => i.latitude !== null && i.longitude !== null
   )
+  const normalizedPlatformSettings = normalizePlatformPricingSettings(platformSettings)
 
   return (
     <MapContainer
@@ -119,7 +127,12 @@ export default function LeafletMap({ instructors, height = '480px', focusLocatio
         </Circle>
       )}
 
-      {instructorsWithCoords.map(instructor => (
+      {instructorsWithCoords.map(instructor => {
+        const studentVisiblePrice =
+          instructor.price_per_lesson +
+          instructor.price_per_lesson * (normalizedPlatformSettings.platform_fee_percent / 100)
+
+        return (
         <Marker
           key={instructor.id}
           position={[instructor.latitude!, instructor.longitude!]}
@@ -149,7 +162,7 @@ export default function LeafletMap({ instructors, height = '480px', focusLocatio
 
               <div className="flex items-center justify-between mb-3">
                 <span className="text-lg font-bold text-blue-700">
-                  {formatCurrency(instructor.price_per_lesson)}
+                  {formatCurrency(studentVisiblePrice)}
                 </span>
                 <span className="text-xs text-gray-400">por aula</span>
               </div>
@@ -163,7 +176,8 @@ export default function LeafletMap({ instructors, height = '480px', focusLocatio
             </div>
           </Popup>
         </Marker>
-      ))}
+        )
+      })}
     </MapContainer>
   )
 }

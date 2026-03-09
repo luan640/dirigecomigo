@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { formatCurrency } from '@/utils/format'
 import SubscriptionAdminTable from './SubscriptionAdminTable'
+import AdminPricingSettingsForm from './AdminPricingSettingsForm'
+import { DEFAULT_PLATFORM_PRICING_SETTINGS, normalizePlatformPricingSettings } from '@/lib/platformPricing'
 
 type AdminInstructorRow = {
   id: string
@@ -79,17 +81,19 @@ export default async function AdminPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = service as any
 
-  const [{ data: instructors }, { data: profiles }, { data: bookings }, { data: subscriptions }] = await Promise.all([
+  const [{ data: instructors }, { data: profiles }, { data: bookings }, { data: subscriptions }, { data: platformSettings }] = await Promise.all([
     db.from('instructors').select('*').order('created_at', { ascending: false }),
     db.from('profiles').select('id,full_name,email,role'),
     db.from('bookings').select('*'),
     db.from('subscriptions').select('*'),
+    db.from('platform_settings').select('platform_fee_percent,pix_fee_percent,card_fee_percent').eq('key', 'default').maybeSingle(),
   ])
 
   const instructorRows: AdminInstructorRow[] = Array.isArray(instructors) ? instructors : []
   const profileRows: AdminProfileRow[] = Array.isArray(profiles) ? profiles : []
   const bookingRows = Array.isArray(bookings) ? bookings : []
   const subscriptionRows: AdminSubscriptionRow[] = Array.isArray(subscriptions) ? subscriptions : []
+  const pricingSettings = normalizePlatformPricingSettings(platformSettings || DEFAULT_PLATFORM_PRICING_SETTINGS)
 
   const profileMap = new Map(profileRows.map(p => [p.id, p]))
   const instructorProfileMap = new Map(
@@ -192,6 +196,8 @@ export default async function AdminPage() {
         <Card title="Receita Assinaturas" value={formatCurrency(subscriptionRevenue)} />
         <Card title="Faturamento Total" value={formatCurrency(totalRevenue)} />
       </section>
+
+      <AdminPricingSettingsForm initialSettings={pricingSettings} />
 
       <SubscriptionAdminTable initialRows={adminSubscriptionRows} />
 

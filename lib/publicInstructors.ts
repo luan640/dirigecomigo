@@ -1,5 +1,6 @@
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 
+import { normalizeWeeklyScheduleSettings } from '@/lib/schedule'
 import type { InstructorCard } from '@/types'
 
 type InstructorRow = Record<string, unknown>
@@ -16,6 +17,8 @@ function buildInstructorCard(row: InstructorRow): InstructorCard {
     rating: Number(row.rating || 0),
     review_count: Number(row.review_count || 0),
     price_per_lesson: Number(row.price_per_lesson || 0),
+    price_per_lesson_a: row.price_per_lesson_a !== null && row.price_per_lesson_a !== undefined ? Number(row.price_per_lesson_a) : null,
+    price_per_lesson_b: row.price_per_lesson_b !== null && row.price_per_lesson_b !== undefined ? Number(row.price_per_lesson_b) : null,
     neighborhood: String(row.neighborhood || ''),
     city: String(row.city || 'Fortaleza'),
     state: String(row.state || 'CE'),
@@ -27,6 +30,7 @@ function buildInstructorCard(row: InstructorRow): InstructorCard {
     total_lessons: Number(row.total_lessons || 0),
     latitude: row.latitude !== null && row.latitude !== undefined ? Number(row.latitude) : null,
     longitude: row.longitude !== null && row.longitude !== undefined ? Number(row.longitude) : null,
+    weekly_schedule: row.weekly_schedule ? normalizeWeeklyScheduleSettings(row.weekly_schedule) : null,
     is_verified: Boolean(row.is_verified),
     available_today: true,
     availability_label: 'available',

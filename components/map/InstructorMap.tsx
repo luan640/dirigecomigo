@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import type { InstructorCard } from '@/types'
+import type { PlatformPricingSettings } from '@/lib/platformPricing'
 
 const LeafletMap = dynamic(() => import('./LeafletMap'), {
   ssr: false,
@@ -18,12 +19,25 @@ const LeafletMap = dynamic(() => import('./LeafletMap'), {
 interface InstructorMapProps {
   instructors: InstructorCard[]
   height?: string
+  platformSettings?: Partial<PlatformPricingSettings> | null
   focusLocation?: {
     latitude: number
     longitude: number
   } | null
 }
 
-export default function InstructorMap({ instructors, height, focusLocation }: InstructorMapProps) {
-  return <LeafletMap instructors={instructors} height={height} focusLocation={focusLocation} />
+export default function InstructorMap({
+  instructors,
+  height,
+  platformSettings,
+  focusLocation,
+}: InstructorMapProps) {
+  return (
+    <LeafletMap
+      instructors={instructors}
+      height={height}
+      platformSettings={platformSettings}
+      focusLocation={focusLocation}
+    />
+  )
 }

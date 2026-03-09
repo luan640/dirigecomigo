@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+import { generateScheduleWindow, normalizeWeeklyScheduleSettings } from '@/lib/schedule'
+
 function canManageStatus(status: string) {
   return status === 'pending' || status === 'confirmed'
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 }
 
 async function getAuthenticatedInstructor() {
@@ -37,7 +43,7 @@ export async function GET(req: Request) {
     const db = supabase as any
     const bookingLookup = await db
       .from('bookings')
-      .select('id, instructor_id, status')
+      .select('id, instructor_id, status, scheduled_date, start_time')
       .eq('id', bookingId)
       .limit(1)
       .maybeSingle()
@@ -50,20 +56,61 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Voce nao pode reagendar esta aula.' }, { status: 403 })
     }
 
-    const slotsResult = await db
-      .from('instructor_availability')
-      .select('id, date, start_time, end_time')
-      .eq('instructor_id', user.id)
-      .eq('is_booked', false)
-      .gte('date', new Date().toISOString().slice(0, 10))
-      .order('date', { ascending: true })
-      .order('start_time', { ascending: true })
+    const [instructorLookup, bookingsResult] = await Promise.all([
+      db
+        .from('instructors')
+        .select('weekly_schedule,min_advance_booking_hours')
+        .eq('id', user.id)
+        .limit(1)
+        .maybeSingle(),
+      db
+        .from('bookings')
+        .select('scheduled_date,start_time,status')
+        .eq('instructor_id', user.id)
+        .gte('scheduled_date', new Date().toISOString().slice(0, 10)),
+    ])
 
-    if (slotsResult.error) {
-      return NextResponse.json({ error: slotsResult.error.message || 'Nao foi possivel carregar slots.' }, { status: 500 })
+    if (instructorLookup.error) {
+      return NextResponse.json({ error: instructorLookup.error.message || 'Nao foi possivel carregar configuracao da agenda.' }, { status: 500 })
+    }
+    if (bookingsResult.error) {
+      return NextResponse.json({ error: bookingsResult.error.message || 'Nao foi possivel carregar slots.' }, { status: 500 })
     }
 
-    return NextResponse.json({ data: { slots: slotsResult.data || [] }, error: null })
+    const minAdvanceHours = Number(instructorLookup.data?.min_advance_booking_hours || 2)
+    const minBookingTs = Date.now() + minAdvanceHours * 60 * 60 * 1000
+    const bookedLookup = new Set<string>(
+      (Array.isArray(bookingsResult.data) ? bookingsResult.data : [])
+        .filter((row: { status?: string; scheduled_date?: string; start_time?: string }) => {
+          const status = String(row.status || '')
+          return status !== 'cancelled' && status !== 'no_show'
+        })
+        .map((row: { scheduled_date?: string; start_time?: string }) => {
+          const date = String(row.scheduled_date || '').slice(0, 10)
+          const time = String(row.start_time || '').slice(0, 5)
+          return date && time ? `${date}-${time}` : ''
+        })
+        .filter(Boolean),
+    )
+
+    const currentBookingKey = `${String(bookingLookup.data.scheduled_date || '').slice(0, 10)}-${String(bookingLookup.data.start_time || '').slice(0, 5)}`
+    bookedLookup.delete(currentBookingKey)
+
+    const weeklySchedule = normalizeWeeklyScheduleSettings(instructorLookup.data?.weekly_schedule)
+    const slots = generateScheduleWindow({
+      settings: weeklySchedule,
+      bookedLookup,
+      daysAhead: 60,
+    })
+      .filter((slot) => new Date(`${slot.date}T${slot.start_time}`).getTime() >= minBookingTs)
+      .map((slot) => ({
+        id: slot.id,
+        date: slot.date,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+      }))
+
+    return NextResponse.json({ data: { slots }, error: null })
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message || 'Erro ao carregar slots.' }, { status: 500 })
   }
@@ -138,30 +185,93 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'slotId obrigatorio para reagendamento.' }, { status: 400 })
     }
 
-    const slotLookup = await db
-      .from('instructor_availability')
-      .select('id, instructor_id, date, start_time, end_time, is_booked')
-      .eq('id', slotId)
-      .limit(1)
-      .maybeSingle()
+    const requestedDate = String(body?.date || '').slice(0, 10)
+    const requestedStartTime = String(body?.start_time || '').slice(0, 8)
+    const requestedEndTime = String(body?.end_time || '').slice(0, 8)
 
-    if (slotLookup.error || !slotLookup.data?.id) {
+    const slotLookup = isUuid(slotId)
+      ? await db
+          .from('instructor_availability')
+          .select('id, instructor_id, date, start_time, end_time, is_booked')
+          .eq('id', slotId)
+          .limit(1)
+          .maybeSingle()
+      : null
+
+    if (slotLookup && (slotLookup.error || !slotLookup.data?.id)) {
       return NextResponse.json({ error: slotLookup.error?.message || 'Slot nao encontrado.' }, { status: 404 })
     }
 
-    if (String(slotLookup.data.instructor_id || '') !== user.id) {
+    if (slotLookup && String(slotLookup.data.instructor_id || '') !== user.id) {
       return NextResponse.json({ error: 'Slot invalido para este instrutor.' }, { status: 403 })
     }
 
-    if (slotLookup.data.is_booked) {
+    if (slotLookup?.data?.is_booked) {
       return NextResponse.json({ error: 'Este horario acabou de ser ocupado. Escolha outro.' }, { status: 409 })
     }
 
+    const nextDate = slotLookup?.data?.date || requestedDate
+    const nextStartTime = slotLookup?.data?.start_time || requestedStartTime
+    const nextEndTime = slotLookup?.data?.end_time || requestedEndTime
+    if (!nextDate || !nextStartTime || !nextEndTime) {
+      return NextResponse.json({ error: 'Dados do novo horario estao incompletos.' }, { status: 400 })
+    }
+
+    if (!slotLookup) {
+      const [instructorLookup, bookingsResult] = await Promise.all([
+        db
+          .from('instructors')
+          .select('weekly_schedule')
+          .eq('id', user.id)
+          .limit(1)
+          .maybeSingle(),
+        db
+          .from('bookings')
+          .select('scheduled_date,start_time,status')
+          .eq('instructor_id', user.id)
+          .eq('scheduled_date', nextDate),
+      ])
+
+      if (instructorLookup.error) {
+        return NextResponse.json({ error: instructorLookup.error.message || 'Nao foi possivel validar a agenda.' }, { status: 500 })
+      }
+      if (bookingsResult.error) {
+        return NextResponse.json({ error: bookingsResult.error.message || 'Nao foi possivel validar o horario.' }, { status: 500 })
+      }
+
+      const bookedLookup = new Set<string>(
+        (Array.isArray(bookingsResult.data) ? bookingsResult.data : [])
+          .filter((row: { status?: string; scheduled_date?: string; start_time?: string }) => {
+            const status = String(row.status || '')
+            return status !== 'cancelled' && status !== 'no_show'
+          })
+          .map((row: { scheduled_date?: string; start_time?: string }) => {
+            const date = String(row.scheduled_date || '').slice(0, 10)
+            const time = String(row.start_time || '').slice(0, 5)
+            return date && time ? `${date}-${time}` : ''
+          })
+          .filter(Boolean),
+      )
+      bookedLookup.delete(`${String(bookingLookup.data.scheduled_date || '').slice(0, 10)}-${String(bookingLookup.data.start_time || '').slice(0, 5)}`)
+
+      const weeklySchedule = normalizeWeeklyScheduleSettings(instructorLookup.data?.weekly_schedule)
+      const allowedSlot = generateScheduleWindow({
+        settings: weeklySchedule,
+        bookedLookup,
+        startDate: new Date(`${nextDate}T00:00:00`),
+        daysAhead: 0,
+      }).find((slot) => slot.date === nextDate && slot.start_time === nextStartTime)
+
+      if (!allowedSlot || allowedSlot.end_time !== nextEndTime) {
+        return NextResponse.json({ error: 'Este horario nao esta mais disponivel na agenda semanal.' }, { status: 409 })
+      }
+    }
+
     const updatePayload = {
-      scheduled_date: slotLookup.data.date,
-      start_time: slotLookup.data.start_time,
-      end_time: slotLookup.data.end_time,
-      availability_slot_id: slotLookup.data.id,
+      scheduled_date: nextDate,
+      start_time: nextStartTime,
+      end_time: nextEndTime,
+      availability_slot_id: slotLookup?.data?.id || null,
       status: 'confirmed',
     }
 
@@ -171,11 +281,13 @@ export async function POST(req: Request) {
     }
 
     const oldSlotId = String(bookingLookup.data.availability_slot_id || '').trim()
-    if (oldSlotId && oldSlotId !== slotId) {
+    if (oldSlotId && oldSlotId !== slotId && isUuid(oldSlotId)) {
       await db.from('instructor_availability').update({ is_booked: false }).eq('id', oldSlotId)
     }
 
-    await db.from('instructor_availability').update({ is_booked: true }).eq('id', slotId)
+    if (slotLookup?.data?.id) {
+      await db.from('instructor_availability').update({ is_booked: true }).eq('id', slotLookup.data.id)
+    }
 
     return NextResponse.json({ data: { ok: true }, error: null })
   } catch (err) {

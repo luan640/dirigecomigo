@@ -80,7 +80,8 @@ function buildNewSchemaPayload(input: MercadoPagoPersistInput, bookingId: string
 }
 
 function buildOldSchemaPayload(input: MercadoPagoPersistInput, bookingId: string, studentId: string, amount: number) {
-  const split = calculatePaymentSplit(amount)
+  const paymentMethod = String(input.metadata?.paymentMethod || 'pix') === 'card' ? 'card' : 'pix'
+  const split = calculatePaymentSplit(amount, paymentMethod)
 
   return {
     booking_id: bookingId,
@@ -166,7 +167,8 @@ export async function linkMercadoPagoPaymentToBooking(
 
   const booking = bookingLookup.data as BookingSnapshot
   const amount = Number(booking.total_amount || booking.gross_amount || input.amount || 0)
-  const split = calculatePaymentSplit(amount)
+  const paymentMethod = String(input.metadata?.paymentMethod || 'pix') === 'card' ? 'card' : 'pix'
+  const split = calculatePaymentSplit(amount, paymentMethod)
 
   const newSchemaPayload = buildNewSchemaPayload({ ...input, amount, bookingId }, bookingId)
   const oldSchemaPayload = {

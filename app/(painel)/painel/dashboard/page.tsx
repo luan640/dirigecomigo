@@ -1,8 +1,9 @@
 import Link from 'next/link'
-import { ArrowRight, DollarSign, Star, TrendingUp, Users } from 'lucide-react'
+import { ArrowRight, DollarSign, TrendingUp, Users } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
+import BookingActionButtons from '@/components/ui/BookingActionButtons'
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/constants/pricing'
 import { formatCurrency } from '@/utils/format'
 
@@ -22,10 +23,6 @@ type ProfileRow = {
   id?: string
   full_name?: string
   phone?: string
-}
-
-type InstructorRow = {
-  rating?: number | string
 }
 
 type DashboardBooking = {
@@ -76,10 +73,8 @@ export default async function PainelDashboardPage() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
-  const [{ data: bookings }, { data: instructor }, { data: profile }] = await Promise.all([
+  const [{ data: bookings }] = await Promise.all([
     db.from('bookings').select('id,student_id,scheduled_date,start_time,end_time,status,instructor_net,platform_fee,total_amount').eq('instructor_id', user.id).order('created_at', { ascending: true }),
-    db.from('instructors').select('rating').eq('id', user.id).maybeSingle(),
-    db.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
   ])
 
   const studentIds = Array.from(
@@ -115,26 +110,21 @@ export default async function PainelDashboardPage() {
 
   const totalNetThisMonth = monthCompleted.reduce((acc, booking) => acc + booking.instructor_net, 0)
   const completedLessons = completed.length
-  const avgRating = toNumber((instructor as InstructorRow | null)?.rating)
-  const firstName = String((profile as { full_name?: string } | null)?.full_name || user.user_metadata?.full_name || 'Instrutor')
-    .trim()
-    .split(' ')[0]
-
   const stats = [
-    { label: 'Receita do mes', value: formatCurrency(totalNetThisMonth), icon: DollarSign, color: 'text-emerald-700', bg: 'bg-emerald-50' },
-    { label: 'Aulas concluidas', value: String(completedLessons), icon: TrendingUp, color: 'text-blue-700', bg: 'bg-blue-50' },
-    { label: 'Proximas aulas', value: String(upcoming.length), icon: Users, color: 'text-purple-700', bg: 'bg-purple-50' },
-    { label: 'Nota media', value: avgRating > 0 ? `${avgRating.toFixed(1)}*` : '-', icon: Star, color: 'text-amber-700', bg: 'bg-amber-50' },
+    { label: 'Receita do mês', value: formatCurrency(totalNetThisMonth), icon: DollarSign, color: 'text-emerald-700', bg: 'bg-emerald-50' },
+    { label: 'Aulas concluídas', value: String(completedLessons), icon: TrendingUp, color: 'text-blue-700', bg: 'bg-blue-50' },
+    { label: 'Próximas aulas', value: String(upcoming.length), icon: Users, color: 'text-purple-700', bg: 'bg-purple-50' },
+    // { label: 'Nota media', value: avgRating > 0 ? `${avgRating.toFixed(1)}*` : '-', icon: Star, color: 'text-amber-700', bg: 'bg-amber-50' },
   ]
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-extrabold text-gray-900">Ola, {firstName}!</h1>
-        <p className="mt-1 text-sm text-gray-500">Aqui esta o resumo da sua atividade.</p>
-      </div>
+    <div className="w-full space-y-6">
+      {/* <div>
+        <h1 className="text-2xl font-extrabold text-gray-900">Olá, {firstName}!</h1>
+        <p className="mt-1 text-sm text-gray-500">Aqui está o resumo da sua atividade.</p>
+      </div> */}
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {stats.map(({ label, value, icon: Icon, color, bg }) => (
           <div key={label} className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
             <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${bg}`}>
@@ -148,7 +138,7 @@ export default async function PainelDashboardPage() {
 
       <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-gray-50 px-5 py-4">
-          <h2 className="font-bold text-gray-900">Proximas aulas</h2>
+          <h2 className="font-bold text-gray-900">Próximas aulas</h2>
           <Link href="/painel/agenda" className="flex items-center gap-1 text-sm text-blue-700 hover:underline">
             Ver agenda <ArrowRight className="h-3.5 w-3.5" />
           </Link>
@@ -162,7 +152,7 @@ export default async function PainelDashboardPage() {
               </Link>
             </div>
           ) : (
-            upcoming.slice(0, 6).map(booking => (
+            upcoming.slice(0, 6).map((booking) => (
               <div key={booking.id} className="flex items-center gap-4 px-5 py-4">
                 <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">
                   {booking.student_name.charAt(0)}
@@ -180,6 +170,7 @@ export default async function PainelDashboardPage() {
                     {BOOKING_STATUS_LABELS[booking.status] || booking.status}
                   </span>
                   <p className="text-sm font-bold text-emerald-700">{formatCurrency(booking.instructor_net)}</p>
+                  <BookingActionButtons booking={booking} />
                 </div>
               </div>
             ))

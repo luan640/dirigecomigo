@@ -2,7 +2,11 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 
 import { PLATFORM_CONFIG } from '@/constants/pricing'
-import { syncStripeSubscriptionToDb } from '@/lib/payments/stripeSubscription'
+import {
+  findLatestStripeSubscriptionByEmail,
+  isReusableStripeSubscriptionStatus,
+  syncStripeSubscriptionToDb,
+} from '@/lib/payments/stripeSubscription'
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
 type ManagedSubscriptionLookup = {
@@ -22,6 +26,33 @@ function resolveBaseUrl(req: Request) {
   } catch {
     return process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || null
   }
+}
+
+async function resolveStripeCustomer(stripe: Stripe, args: {
+  email: string
+  instructorId: string
+}) {
+  const email = args.email.trim().toLowerCase()
+  const instructorId = args.instructorId.trim()
+
+  const customers = await stripe.customers.list({
+    email,
+    limit: 1,
+  })
+
+  const existingCustomer = customers.data.find((customer) => !customer.deleted)
+  if (existingCustomer && !existingCustomer.deleted) {
+    return existingCustomer.id
+  }
+
+  const customer = await stripe.customers.create({
+    email,
+    metadata: {
+      instructor_id: instructorId,
+    },
+  })
+
+  return customer.id
 }
 
 export async function POST(req: Request) {
@@ -146,12 +177,34 @@ export async function POST(req: Request) {
           quantity: 1,
         }
 
+    const customerId = await resolveStripeCustomer(stripe, {
+      email: user.email,
+      instructorId: user.id,
+    })
+
+    const existingSubscription = await findLatestStripeSubscriptionByEmail(stripe, user.email)
+    if (existingSubscription && isReusableStripeSubscriptionStatus(existingSubscription.status)) {
+      const synced = await syncStripeSubscriptionToDb({
+        db,
+        subscription: existingSubscription,
+        fallbackInstructorId: user.id,
+        fallbackEmail: user.email,
+        fallbackAmount: PLATFORM_CONFIG.INSTRUCTOR_SUBSCRIPTION_PRICE,
+      })
+
+      if (synced.error) {
+        return NextResponse.json({ error: synced.error }, { status: 400 })
+      }
+
+      return NextResponse.json({ data: synced.data, error: null })
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       success_url: `${baseUrl}/painel/assinatura?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/painel/assinatura?checkout=cancelled`,
       client_reference_id: user.id,
-      customer_email: user.email,
+      customer: customerId,
       metadata: {
         instructor_id: user.id,
         email: user.email,

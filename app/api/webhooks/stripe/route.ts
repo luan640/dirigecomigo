@@ -64,7 +64,12 @@ export async function POST(req: Request) {
         const subscription = typeof session.subscription === 'string'
           ? await stripe.subscriptions.retrieve(session.subscription)
           : session.subscription
-        const customerEmail = String(session.customer_details?.email || session.customer_email || '').trim() || null
+        const customerEmail = String(
+          session.customer_details?.email ||
+          session.customer_email ||
+          await resolveCustomerEmail(stripe, session.customer) ||
+          '',
+        ).trim() || null
 
         await syncStripeSubscriptionToDb({
           db: service,

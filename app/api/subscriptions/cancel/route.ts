@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server'
-import { MercadoPagoConfig, PreApproval } from 'mercadopago'
+import Stripe from 'stripe'
+
+import { syncStripeSubscriptionToDb } from '@/lib/payments/stripeSubscription'
+
+type ActiveSubscriptionRow = {
+  id?: string | null
+  provider?: string | null
+  provider_sub_id?: string | null
+  amount?: number | null
+}
 
 export async function POST() {
   try {
@@ -24,33 +33,47 @@ export async function POST() {
       return NextResponse.json({ error: subsError.message }, { status: 400 })
     }
 
-    const activeSubs: Record<string, unknown>[] = Array.isArray(currentSubs) ? currentSubs : []
+    const activeSubs: ActiveSubscriptionRow[] = Array.isArray(currentSubs) ? currentSubs : []
     if (!activeSubs.length) {
       return NextResponse.json({ data: null, error: null })
     }
 
-    const mpSubs = activeSubs.filter(
-      row => row.provider === 'mercadopago' && row.provider_sub_id,
+    const unsupportedProvider = activeSubs.find(
+      row => row.provider && row.provider !== 'stripe',
     )
-    if (mpSubs.length) {
-      const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN
-      if (!accessToken) {
-        return NextResponse.json({ error: 'MERCADOPAGO_ACCESS_TOKEN nao configurado.' }, { status: 500 })
+    if (unsupportedProvider) {
+      return NextResponse.json({ error: 'Este endpoint suporta apenas assinaturas Stripe.' }, { status: 400 })
+    }
+
+    const stripeSubs = activeSubs.filter(
+      row => row.provider === 'stripe' && row.provider_sub_id,
+    )
+    if (stripeSubs.length) {
+      const secretKey = process.env.STRIPE_SECRET_KEY
+      if (!secretKey) {
+        return NextResponse.json({ error: 'STRIPE_SECRET_KEY nao configurado.' }, { status: 500 })
       }
 
-      const client = new MercadoPagoConfig({ accessToken })
-      const preapprovalClient = new PreApproval(client)
-      for (const row of mpSubs) {
+      const stripe = new Stripe(secretKey)
+      for (const row of stripeSubs) {
         try {
-          await preapprovalClient.update({
-            id: String(row.provider_sub_id),
-            body: { status: 'cancelled' },
+          const cancelledSubscription = await stripe.subscriptions.cancel(String(row.provider_sub_id))
+
+          const synced = await syncStripeSubscriptionToDb({
+            db,
+            subscription: cancelledSubscription,
+            fallbackInstructorId: user.id,
+            fallbackAmount: Number(row.amount || 15),
           })
+
+          if (synced.error) {
+            return NextResponse.json({ error: synced.error }, { status: 400 })
+          }
         } catch (err) {
           const message = String((err as Error)?.message || '')
           const ignorable = message.includes('404') || message.toLowerCase().includes('not found')
           if (!ignorable) {
-            return NextResponse.json({ error: `Falha ao cancelar no Mercado Pago: ${message}` }, { status: 400 })
+            return NextResponse.json({ error: `Falha ao cancelar no Stripe: ${message}` }, { status: 400 })
           }
         }
       }
