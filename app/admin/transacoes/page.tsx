@@ -8,6 +8,9 @@ type AdminProfileRow = {
   full_name?: string
   email?: string
 }
+type AdminRoleLookup = {
+  role?: string | null
+}
 
 type PaymentRecord = Record<string, unknown>
 type BookingRecord = Record<string, unknown>
@@ -23,7 +26,7 @@ async function getAdminRole() {
     .from('profiles')
     .select('role')
     .eq('id', user.id)
-    .maybeSingle()
+    .maybeSingle() as { data: AdminRoleLookup | null; error: Error | null }
 
   return profile?.role || null
 }

@@ -21,6 +21,9 @@ type AdminProfileRow = {
   email?: string
   role?: string
 }
+type AdminRoleLookup = {
+  role?: string | null
+}
 
 type AdminSubscriptionRow = {
   id: string
@@ -45,7 +48,7 @@ async function getAdminRole() {
     .from('profiles')
     .select('role')
     .eq('id', user.id)
-    .maybeSingle()
+    .maybeSingle() as { data: AdminRoleLookup | null; error: Error | null }
 
   return profile?.role || null
 }
