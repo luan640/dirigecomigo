@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
 import { CheckCircle2, XCircle, Loader2, CreditCard, Shield, Zap } from 'lucide-react'
@@ -43,7 +43,7 @@ function normalizeSubscription(raw: SubscriptionPayload | null) {
   }
 }
 
-export default function AssinaturaPage() {
+function AssinaturaContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
@@ -295,5 +295,24 @@ export default function AssinaturaPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function AssinaturaPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-xl mx-auto space-y-5">
+          <h1 className="text-2xl font-extrabold text-gray-900">Assinatura</h1>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="py-8 flex items-center justify-center text-gray-500 text-sm">
+              <Loader2 className="w-4 h-4 animate-spin mr-2" /> Carregando assinatura...
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <AssinaturaContent />
+    </Suspense>
   )
 }

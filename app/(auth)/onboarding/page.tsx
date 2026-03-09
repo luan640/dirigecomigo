@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -63,7 +63,7 @@ function getFallbackLetter(name: string) {
   return name.trim().charAt(0).toUpperCase() || 'I'
 }
 
-export default function OnboardingPage() {
+function OnboardingContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const role = searchParams.get('role') || 'student'
@@ -556,6 +556,24 @@ export default function OnboardingPage() {
         </form>
       )}
     </>
+  )
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="py-6 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
+            <Loader2 className="h-9 w-9 animate-spin text-blue-600" />
+          </div>
+          <h1 className="mb-2 text-2xl font-bold text-gray-900">Carregando onboarding</h1>
+          <p className="text-sm text-gray-500">Estamos preparando seu cadastro inicial.</p>
+        </div>
+      }
+    >
+      <OnboardingContent />
+    </Suspense>
   )
 }
 

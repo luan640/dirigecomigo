@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function AuthCodeHandler() {
+function AuthCodeHandlerContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -28,4 +28,12 @@ export default function AuthCodeHandler() {
   }, [router, searchParams])
 
   return null
+}
+
+export default function AuthCodeHandler() {
+  return (
+    <Suspense fallback={null}>
+      <AuthCodeHandlerContent />
+    </Suspense>
+  )
 }

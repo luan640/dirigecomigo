@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -19,7 +19,7 @@ import type { InstructorCard, PaymentIntent } from '@/types'
 type Step = 'review' | 'payment' | 'pix' | 'success'
 type PayMethod = 'card' | 'pix'
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -900,5 +900,26 @@ export default function CheckoutPage() {
       </main>
       <Footer />
     </>
+  )
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense
+      fallback={
+        <>
+          <Navbar />
+          <main className="min-h-screen bg-gray-50">
+            <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-12 text-gray-500 sm:px-6">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Carregando checkout...
+            </div>
+          </main>
+          <Footer />
+        </>
+      }
+    >
+      <CheckoutContent />
+    </Suspense>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -16,7 +16,7 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
-export default function EntrarPage() {
+function EntrarContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [showPassword, setShowPassword] = useState(false)
@@ -275,5 +275,23 @@ export default function EntrarPage() {
         </p>
       </div>
     </>
+  )
+}
+
+export default function EntrarPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="py-6 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
+            <Loader2 className="h-9 w-9 animate-spin text-blue-600" />
+          </div>
+          <h1 className="mb-2 text-2xl font-bold text-gray-900">Carregando acesso</h1>
+          <p className="text-sm text-gray-500">Estamos preparando a tela de login.</p>
+        </div>
+      }
+    >
+      <EntrarContent />
+    </Suspense>
   )
 }
