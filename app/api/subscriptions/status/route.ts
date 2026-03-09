@@ -5,6 +5,12 @@ import Stripe from 'stripe'
 import { syncPreapprovalToSubscription } from '@/lib/payments/mercadoPagoSubscription'
 import { syncStripeSubscriptionToDb } from '@/lib/payments/stripeSubscription'
 
+type SubscriptionStatusRow = {
+  provider?: string | null
+  provider_sub_id?: string | null
+  amount?: number | null
+}
+
 export async function GET() {
   try {
     const { createClient } = await import('@/lib/supabase/server')
@@ -21,7 +27,7 @@ export async function GET() {
       .eq('instructor_id', user.id)
       .order('updated_at', { ascending: false })
       .limit(1)
-      .maybeSingle()
+      .maybeSingle() as { data: SubscriptionStatusRow | null; error: Error | null }
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 

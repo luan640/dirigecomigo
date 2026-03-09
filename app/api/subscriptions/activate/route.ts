@@ -5,6 +5,9 @@ import { PLATFORM_CONFIG } from '@/constants/pricing'
 import { syncStripeSubscriptionToDb } from '@/lib/payments/stripeSubscription'
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
+type ManagedSubscriptionLookup = {
+  provider_sub_id?: string | null
+}
 
 function resolveBaseUrl(req: Request) {
   const forwardedHost = req.headers.get('x-forwarded-host')
@@ -97,7 +100,7 @@ export async function POST(req: Request) {
         .eq('provider', 'stripe')
         .order('updated_at', { ascending: false })
         .limit(1)
-        .maybeSingle()
+        .maybeSingle() as { data: ManagedSubscriptionLookup | null; error: Error | null }
 
       if (error) return NextResponse.json({ error: error.message }, { status: 400 })
       if (!subscription?.provider_sub_id) {
