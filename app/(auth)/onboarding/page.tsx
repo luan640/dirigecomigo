@@ -45,6 +45,19 @@ const studentSchema = z.object({
 
 type InstructorFormData = z.infer<typeof instructorSchema>
 type StudentFormData = z.infer<typeof studentSchema>
+type OnboardingProfileRow = {
+  full_name: string | null
+  email: string | null
+  phone: string | null
+  avatar_url: string | null
+}
+type OnboardingInstructorRow = {
+  category?: string | null
+  categories?: unknown[] | null
+  price_per_lesson?: number | null
+  price_per_lesson_a?: number | null
+  price_per_lesson_b?: number | null
+}
 
 function getFallbackLetter(name: string) {
   return name.trim().charAt(0).toUpperCase() || 'I'
@@ -98,13 +111,13 @@ export default function OnboardingPage() {
           .from('profiles')
           .select('full_name,email,phone,avatar_url')
           .eq('id', user.id)
-          .maybeSingle()
+          .maybeSingle() as { data: OnboardingProfileRow | null; error: Error | null }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: instructor } = await (supabase.from('instructors') as any)
           .select('category,categories,price_per_lesson_a,price_per_lesson_b')
           .eq('id', user.id)
-          .maybeSingle()
+          .maybeSingle() as { data: OnboardingInstructorRow | null; error: Error | null }
 
         const fullName = String(profile?.full_name || user.user_metadata?.full_name || '').trim()
         const email = String(profile?.email || user.email || '').trim()
