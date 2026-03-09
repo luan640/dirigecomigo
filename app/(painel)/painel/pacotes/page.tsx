@@ -65,12 +65,12 @@ export default function PacotesPage() {
     const loadPackages = async () => {
       try {
         const supabase = createClient()
+        const lessonPackagesTable = supabase.from('lesson_packages') as any
         const { data: authData } = await supabase.auth.getUser()
         const userId = authData.user?.id
         if (!userId) throw new Error('Sessao expirada. Faca login novamente.')
 
-        const { data, error } = await supabase
-          .from('lesson_packages')
+        const { data, error } = await lessonPackagesTable
           .select('*')
           .eq('instructor_id', userId)
           .order('created_at', { ascending: false })
@@ -109,6 +109,7 @@ export default function PacotesPage() {
     setSaving(true)
     try {
       const supabase = createClient()
+      const lessonPackagesTable = supabase.from('lesson_packages') as any
       const { data: authData } = await supabase.auth.getUser()
       const userId = authData.user?.id
       if (!userId) throw new Error('Sessao expirada. Faca login novamente.')
@@ -123,8 +124,7 @@ export default function PacotesPage() {
 
       if (editingId) {
         const updatePayload: PackageUpdate = basePayload
-        const { data, error } = await supabase
-          .from('lesson_packages')
+        const { data, error } = await lessonPackagesTable
           .update(updatePayload)
           .eq('id', editingId)
           .eq('instructor_id', userId)
@@ -143,8 +143,7 @@ export default function PacotesPage() {
           is_active: true,
         }
 
-        const { data, error } = await supabase
-          .from('lesson_packages')
+        const { data, error } = await lessonPackagesTable
           .insert(insertPayload)
           .select('*')
           .single()
@@ -179,8 +178,8 @@ export default function PacotesPage() {
   async function toggleActive(pkg: LessonPackage) {
     try {
       const supabase = createClient()
-      const { data, error } = await supabase
-        .from('lesson_packages')
+      const lessonPackagesTable = supabase.from('lesson_packages') as any
+      const { data, error } = await lessonPackagesTable
         .update({ is_active: !pkg.is_active })
         .eq('id', pkg.id)
         .select('*')
@@ -198,8 +197,8 @@ export default function PacotesPage() {
   async function deletePackage(id: string) {
     try {
       const supabase = createClient()
-      const { error } = await supabase
-        .from('lesson_packages')
+      const lessonPackagesTable = supabase.from('lesson_packages') as any
+      const { error } = await lessonPackagesTable
         .delete()
         .eq('id', id)
 
