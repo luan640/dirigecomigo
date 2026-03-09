@@ -53,13 +53,14 @@ function applyFilters(instructors: InstructorCard[], filters: InstructorSearchFi
     results = results.filter(i => i.available_today)
   }
   if (filters.category) {
+    const selectedCategory = filters.category
     results = results.filter(i => {
-      if (i.category === filters.category) return true
+      if (i.category === selectedCategory) return true
 
       const categories = i.categories?.length ? i.categories : []
-      if (categories.includes(filters.category)) return true
+      if (categories.includes(selectedCategory)) return true
 
-      if (filters.category === 'AB') {
+      if (selectedCategory === 'AB') {
         return categories.includes('A') && categories.includes('B')
       }
 
