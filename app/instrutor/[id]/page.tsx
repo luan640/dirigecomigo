@@ -92,7 +92,7 @@ async function loadInstructorProfileData(id: string) {
   const instructor = instructors.find(item => item.id === id) || null
   if (!instructor) return { instructor: null, reviews: [], availability: [] }
 
-  const [{ data: availabilityRows }, { data: bookingRows }, { data: instructorMeta }] = await Promise.all([
+  const [availabilityResult, bookingResult, instructorMetaResult] = await Promise.all([
     supabase
       .from('instructor_availability')
       .select('id,date,start_time,end_time,is_booked')
@@ -109,8 +109,12 @@ async function loadInstructorProfileData(id: string) {
       .from('instructors')
       .select('created_at')
       .eq('id', id)
-      .maybeSingle() as Promise<{ data: InstructorMetaRow | null; error: Error | null }>,
+      .maybeSingle(),
   ])
+
+  const availabilityRows = availabilityResult.data
+  const bookingRows = bookingResult.data
+  const instructorMeta = (instructorMetaResult as { data: InstructorMetaRow | null; error: Error | null }).data
 
   const safeAvailabilityRows: AvailabilityRow[] = Array.isArray(availabilityRows) ? availabilityRows : []
   const safeBookingRows: BookingRow[] = Array.isArray(bookingRows) ? bookingRows : []
