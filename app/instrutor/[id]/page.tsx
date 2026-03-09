@@ -10,7 +10,6 @@ import { formatCurrency, formatDate } from '@/utils/format'
 import { VEHICLE_CATEGORY_LABELS } from '@/constants/pricing'
 import { generateScheduleWindow } from '@/lib/schedule'
 import Navbar from '@/components/layout/Navbar'
-import Footer from '@/components/layout/Footer'
 import BookingSection from '@/components/ui/PublicBookingSection'
 import type { AvailabilitySlot } from '@/types'
 
@@ -226,6 +225,8 @@ export default async function InstructorProfilePage({ params }: { params: Promis
   const { id } = await params
   const { instructor, reviews, availability, memberSince, platformSettings } = await loadInstructorProfileData(id)
   if (!instructor) notFound()
+  const platformFeeAmount = Math.round(instructor.price_per_lesson * (platformSettings.platform_fee_percent / 100) * 100) / 100
+  const totalLessonPrice = Math.round((instructor.price_per_lesson + platformFeeAmount) * 100) / 100
 
   return (
     <>
@@ -270,6 +271,12 @@ export default async function InstructorProfilePage({ params }: { params: Promis
                       <div className="flex-shrink-0 text-right">
                         <p className="text-2xl font-extrabold text-blue-700">{formatCurrency(instructor.price_per_lesson)}</p>
                         <p className="text-xs text-gray-400">por aula</p>
+                        <p className="mt-1 text-xs font-medium text-gray-500">
+                          Taxa da plataforma: {platformSettings.platform_fee_percent}%
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-gray-900">
+                          Total: {formatCurrency(totalLessonPrice)}
+                        </p>
                       </div>
                     </div>
 
@@ -377,7 +384,6 @@ export default async function InstructorProfilePage({ params }: { params: Promis
           </div>
         </div>
       </main>
-      <Footer />
     </>
   )
 }
@@ -390,4 +396,3 @@ function Detail({ label, value }: { label: string; value: string }) {
     </div>
   )
 }
-

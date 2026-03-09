@@ -688,7 +688,7 @@ function CheckoutContent() {
               </div>
 
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
-                Cancelamentos sao aceitos ate {cancellationNoticeLabel} antes da aula.
+                Cancelamentos são aceitos até {cancellationNoticeLabel} antes da aula.
               </div>
 
               <div className="space-y-3 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
