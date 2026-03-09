@@ -54,6 +54,22 @@ type AvailabilityItem = {
   end_time: string
   is_booked: boolean
 }
+type AvailabilityRow = {
+  id: string
+  date: string
+  start_time: string
+  end_time: string
+  is_booked: boolean | null
+}
+type BookingRow = {
+  availability_slot_id?: string | null
+  scheduled_date?: string | null
+  start_time?: string | null
+  status?: string | null
+}
+type InstructorMetaRow = {
+  created_at?: string | null
+}
 
 export async function generateStaticParams() {
   return MOCK_INSTRUCTORS.map(i => ({ id: i.id }))
@@ -93,31 +109,32 @@ async function loadInstructorProfileData(id: string) {
       .from('instructors')
       .select('created_at')
       .eq('id', id)
-      .maybeSingle(),
+      .maybeSingle() as Promise<{ data: InstructorMetaRow | null; error: Error | null }>,
   ])
 
+  const safeAvailabilityRows: AvailabilityRow[] = Array.isArray(availabilityRows) ? availabilityRows : []
+  const safeBookingRows: BookingRow[] = Array.isArray(bookingRows) ? bookingRows : []
+
   const occupiedSlotKeys = new Set(
-    Array.isArray(bookingRows)
-      ? bookingRows
-          .filter(row => {
-            const status = String(row.status || '')
-            return status !== 'cancelled' && status !== 'no_show'
-          })
-          .map(row => {
-            const availabilityId = String(row.availability_slot_id || '')
-            if (availabilityId) return `id:${availabilityId}`
-            const date = String(row.scheduled_date || '').slice(0, 10)
-            const time = String(row.start_time || '').slice(0, 5)
-            return date && time ? `time:${date}-${time}` : ''
-          })
-          .filter(Boolean)
-      : [],
+    safeBookingRows
+      .filter(row => {
+        const status = String(row.status || '')
+        return status !== 'cancelled' && status !== 'no_show'
+      })
+      .map(row => {
+        const availabilityId = String(row.availability_slot_id || '')
+        if (availabilityId) return `id:${availabilityId}`
+        const date = String(row.scheduled_date || '').slice(0, 10)
+        const time = String(row.start_time || '').slice(0, 5)
+        return date && time ? `time:${date}-${time}` : ''
+      })
+      .filter(Boolean),
   )
 
   const todayDate = new Date()
   const todayStr = format(todayDate, 'yyyy-MM-dd')
-  const mappedAvailability: AvailabilityItem[] = Array.isArray(availabilityRows)
-    ? availabilityRows.map(slot => ({
+  const mappedAvailability: AvailabilityItem[] = safeAvailabilityRows
+    .map(slot => ({
         id: String(slot.id),
         date: String(slot.date),
         start_time: String(slot.start_time).slice(0, 5),
@@ -127,7 +144,6 @@ async function loadInstructorProfileData(id: string) {
           occupiedSlotKeys.has(`id:${String(slot.id)}`) ||
           occupiedSlotKeys.has(`time:${String(slot.date)}-${String(slot.start_time).slice(0, 5)}`),
       }))
-    : []
 
   const futureAvailability = mappedAvailability.filter(slot => slot.date >= todayStr)
   const availability =
