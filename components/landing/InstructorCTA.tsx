@@ -38,7 +38,7 @@ export default function InstructorCTA() {
             </span>
             <h2 className="text-3xl md:text-4xl font-black text-white mb-5 leading-tight">
               Expanda seus alunos com o{' '}
-              <span className="gradient-text">MeuInstrutor</span>
+              <span className="gradient-text">Direcao Facil</span>
             </h2>
             <p className="text-gray-400 text-lg leading-relaxed mb-8">
               Cadastre-se como instrutor parceiro e conecte-se com alunos prontos para aprender a

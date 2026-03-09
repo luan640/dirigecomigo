@@ -16,7 +16,7 @@ export async function geocodeCepAction(cep: string) {
     cache: 'no-store',
     headers: {
       Authorization: `Token token=${token}`,
-      'User-Agent': 'MeuInstrutor/1.0',
+      'User-Agent': 'DirecaoFacil/1.0',
     },
   })
 

@@ -18,6 +18,9 @@ const schema = z.object({
 })
 
 type FormData = z.infer<typeof schema>
+type ExistingProfileLookup = {
+  id: string
+}
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase()
@@ -73,7 +76,7 @@ export default function CadastroPage() {
         .select('id')
         .eq('email', normalizedEmail)
         .limit(1)
-        .maybeSingle()
+        .maybeSingle() as { data: ExistingProfileLookup | null; error: Error | null }
 
       if (existingProfileError) throw existingProfileError
       if (existingProfile?.id) {

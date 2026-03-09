@@ -1,35 +1,36 @@
-import type { Metadata } from "next";
-import "./globals.css";
-import { Toaster } from "sonner";
+import type { Metadata } from 'next'
+
+import './globals.css'
+import { Toaster } from 'sonner'
 
 export const metadata: Metadata = {
   title: {
-    default: "MeuInstrutor — Encontre instrutores de direção em Fortaleza",
-    template: "%s | MeuInstrutor",
+    default: 'Direcao Facil - Encontre instrutores de direcao em Fortaleza',
+    template: '%s | Direcao Facil',
   },
   description:
-    "A maior plataforma de instrutores de direção do Ceará. Encontre o instrutor ideal, agende aulas online e pague com segurança.",
+    'A maior plataforma de instrutores de direcao do Ceara. Encontre o instrutor ideal, agende aulas online e pague com seguranca.',
   keywords: [
-    "instrutor de direção",
-    "autoescola",
-    "aulas de direção",
-    "Fortaleza",
-    "Ceará",
-    "CNH",
-    "habilitação",
+    'instrutor de direcao',
+    'autoescola',
+    'aulas de direcao',
+    'Fortaleza',
+    'Ceara',
+    'CNH',
+    'habilitacao',
   ],
   openGraph: {
-    title: "MeuInstrutor — Encontre instrutores de direção em Fortaleza",
-    description: "Conectamos alunos a instrutores certificados em Fortaleza - CE.",
-    type: "website",
-    locale: "pt_BR",
+    title: 'Direcao Facil - Encontre instrutores de direcao em Fortaleza',
+    description: 'Conectamos alunos a instrutores certificados em Fortaleza - CE.',
+    type: 'website',
+    locale: 'pt_BR',
   },
-};
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
     <html lang="pt-BR">
@@ -38,5 +39,5 @@ export default function RootLayout({
         <Toaster richColors position="top-right" />
       </body>
     </html>
-  );
+  )
 }

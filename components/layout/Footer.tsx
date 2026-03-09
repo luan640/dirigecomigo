@@ -1,125 +1,118 @@
 import Link from 'next/link'
-import { Car, Instagram, Facebook, Linkedin } from 'lucide-react'
+import { Facebook, Instagram, Linkedin } from 'lucide-react'
+
+import BrandLogo from '@/components/layout/BrandLogo'
 
 export default function Footer() {
   return (
     <footer className="bg-gray-900 text-gray-400">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* Brand */}
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
           <div className="md:col-span-1">
-            <Link href="/" className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center">
-                <Car className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-white">
-                Meu<span className="text-violet-400">Instrutor</span>
-              </span>
+            <Link href="/" className="mb-4 inline-flex items-center">
+              <BrandLogo className="h-12 w-auto rounded-md" />
             </Link>
-            <p className="text-sm leading-relaxed mb-4">
-              Conectamos alunos a instrutores certificados em Fortaleza e no Ceará. Aprenda a dirigir
-              com segurança e confiança.
+            <p className="mb-4 text-sm leading-relaxed">
+              Conectamos alunos a instrutores certificados em Fortaleza e no Ceara. Aprenda a dirigir
+              com seguranca e confianca.
             </p>
             <div className="flex items-center gap-3">
               <a
                 href="#"
-                className="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-violet-600 transition-colors"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-800 transition-colors hover:bg-violet-600"
                 aria-label="Instagram"
               >
-                <Instagram className="w-4 h-4" />
+                <Instagram className="h-4 w-4" />
               </a>
               <a
                 href="#"
-                className="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-violet-600 transition-colors"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-800 transition-colors hover:bg-violet-600"
                 aria-label="Facebook"
               >
-                <Facebook className="w-4 h-4" />
+                <Facebook className="h-4 w-4" />
               </a>
               <a
                 href="#"
-                className="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-violet-600 transition-colors"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-800 transition-colors hover:bg-violet-600"
                 aria-label="LinkedIn"
               >
-                <Linkedin className="w-4 h-4" />
+                <Linkedin className="h-4 w-4" />
               </a>
             </div>
           </div>
 
-          {/* Para Alunos */}
           <div>
-            <h3 className="text-white font-semibold mb-4">Para Alunos</h3>
+            <h3 className="mb-4 font-semibold text-white">Para Alunos</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/instrutores" className="hover:text-white transition-colors">
+                <Link href="/instrutores" className="transition-colors hover:text-white">
                   Buscar instrutores
                 </Link>
               </li>
               <li>
-                <Link href="/#como-funciona" className="hover:text-white transition-colors">
+                <Link href="/#como-funciona" className="transition-colors hover:text-white">
                   Como funciona
                 </Link>
               </li>
               <li>
-                <Link href="/cadastro" className="hover:text-white transition-colors">
-                  Criar conta grátis
+                <Link href="/cadastro" className="transition-colors hover:text-white">
+                  Criar conta gratis
                 </Link>
               </li>
               <li>
-                <Link href="/aluno/dashboard" className="hover:text-white transition-colors">
+                <Link href="/aluno/dashboard" className="transition-colors hover:text-white">
                   Minhas aulas
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Para Instrutores */}
           <div>
-            <h3 className="text-white font-semibold mb-4">Para Instrutores</h3>
+            <h3 className="mb-4 font-semibold text-white">Para Instrutores</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/#seja-instrutor" className="hover:text-white transition-colors">
+                <Link href="/#seja-instrutor" className="transition-colors hover:text-white">
                   Seja parceiro
                 </Link>
               </li>
               <li>
-                <Link href="/cadastro?role=instructor" className="hover:text-white transition-colors">
+                <Link href="/cadastro?role=instructor" className="transition-colors hover:text-white">
                   Cadastrar-se
                 </Link>
               </li>
               <li>
-                <Link href="/painel/dashboard" className="hover:text-white transition-colors">
+                <Link href="/painel/dashboard" className="transition-colors hover:text-white">
                   Painel do instrutor
                 </Link>
               </li>
               <li>
-                <Link href="/painel/assinatura" className="hover:text-white transition-colors">
+                <Link href="/painel/assinatura" className="transition-colors hover:text-white">
                   Assinatura mensal
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Suporte */}
           <div>
-            <h3 className="text-white font-semibold mb-4">Suporte</h3>
+            <h3 className="mb-4 font-semibold text-white">Suporte</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/termos" className="hover:text-white transition-colors">
+                <Link href="/termos" className="transition-colors hover:text-white">
                   Termos de uso
                 </Link>
               </li>
               <li>
-                <Link href="/privacidade" className="hover:text-white transition-colors">
-                  Política de privacidade
+                <Link href="/privacidade" className="transition-colors hover:text-white">
+                  Politica de privacidade
                 </Link>
               </li>
               <li>
-                <a href="mailto:contato@meuinstrutor.com.br" className="hover:text-white transition-colors">
+                <a href="mailto:contato@meuinstrutor.com.br" className="transition-colors hover:text-white">
                   contato@meuinstrutor.com.br
                 </a>
               </li>
               <li>
-                <a href="https://wa.me/5585999999999" className="hover:text-white transition-colors">
+                <a href="https://wa.me/5585999999999" className="transition-colors hover:text-white">
                   WhatsApp (85) 9 9999-9999
                 </a>
               </li>
@@ -127,15 +120,15 @@ export default function Footer() {
           </div>
         </div>
 
-        <hr className="border-gray-800 my-8" />
+        <hr className="my-8 border-gray-800" />
 
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm">
+        <div className="flex flex-col items-center justify-between gap-4 text-sm md:flex-row">
           <p>
-            © {new Date().getFullYear()} MeuInstrutor. Todos os direitos reservados. Fortaleza - CE,
-            Brasil.
+            Copyright {new Date().getFullYear()} Direcao Facil. Todos os direitos reservados.
+            Fortaleza - CE, Brasil.
           </p>
-          <p className="text-gray-600 text-xs">
-            Plataforma em modo demonstração — dados fictícios para fins de apresentação
+          <p className="text-xs text-gray-600">
+            Plataforma em modo demonstracao - dados ficticios para fins de apresentacao
           </p>
         </div>
       </div>

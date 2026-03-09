@@ -136,7 +136,7 @@ export async function POST(req: Request) {
             unit_amount: Math.round(PLATFORM_CONFIG.INSTRUCTOR_SUBSCRIPTION_PRICE * 100),
             recurring: { interval: 'month' as const },
             product_data: {
-              name: 'MeuInstrutor Pro',
+              name: 'Direcao Facil Pro',
               description: 'Assinatura mensal recorrente para instrutores',
             },
           },

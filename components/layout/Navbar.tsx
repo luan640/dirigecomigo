@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
-import { Menu, X, Car, User, LogIn, LayoutDashboard, ChevronDown } from 'lucide-react'
+import { Menu, X, User, LogIn, LayoutDashboard, ChevronDown } from 'lucide-react'
 import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
+import BrandLogo from '@/components/layout/BrandLogo'
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
 
@@ -68,13 +69,8 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center group-hover:bg-violet-700 transition-colors">
-              <Car className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-gray-900">
-              Meu<span className="text-violet-600">Instrutor</span>
-            </span>
+          <Link href="/" className="flex items-center">
+            <BrandLogo className="h-10 w-auto" priority />
           </Link>
 
           {/* Desktop nav */}

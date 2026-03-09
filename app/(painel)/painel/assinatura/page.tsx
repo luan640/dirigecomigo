@@ -210,7 +210,7 @@ export default function AssinaturaPage() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-sm text-gray-500">Plano atual</p>
-                <p className="text-xl font-extrabold text-gray-900 mt-0.5">MeuInstrutor Pro</p>
+                <p className="text-xl font-extrabold text-gray-900 mt-0.5">Direcao Facil Pro</p>
               </div>
               <span className={`text-sm font-bold px-3 py-1 rounded-full ${statusConfig[sub.status].cls}`}>
                 {statusConfig[sub.status].label}
