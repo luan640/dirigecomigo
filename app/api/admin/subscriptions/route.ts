@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 
+type AdminRoleLookup = {
+  role?: string | null
+}
+
 async function requireAdmin() {
   const { createClient } = await import('@/lib/supabase/server')
   const supabase = await createClient()
@@ -12,7 +16,7 @@ async function requireAdmin() {
     .from('profiles')
     .select('role')
     .eq('id', user.id)
-    .maybeSingle()
+    .maybeSingle() as { data: AdminRoleLookup | null; error: Error | null }
 
   if (profile?.role !== 'admin') return { ok: false as const, status: 403, error: 'Acesso negado.' }
   return { ok: true as const, userId: user.id }
