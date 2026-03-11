@@ -77,11 +77,12 @@ export async function findLatestMercadoPagoPreapproval(args: {
 
   if (!payerEmail && !externalReference) return null
 
+  const searchOptions: { payer_email?: string; q?: string } = {}
+  if (payerEmail) searchOptions.payer_email = payerEmail
+  if (externalReference) searchOptions.q = externalReference
+
   const search = await client.search({
-    options: {
-      payer_email: payerEmail || undefined,
-      q: externalReference || undefined,
-    },
+    options: searchOptions,
   })
 
   const results = Array.isArray(search.results) ? search.results : []

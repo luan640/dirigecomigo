@@ -282,7 +282,9 @@ export async function loadPublicInstructors(): Promise<InstructorCard[]> {
       bookingsByInstructor.set(instructorId, current)
     }
 
-    return instructorResult.data
+    const instructorRows = instructorResult.data as InstructorRow[]
+
+    return instructorRows
       .filter((row: InstructorRow) => row.is_active !== false)
       .map((row: InstructorRow) =>
         buildInstructorCard({

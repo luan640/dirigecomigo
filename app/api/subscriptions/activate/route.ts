@@ -120,7 +120,7 @@ export async function POST(req: Request) {
     const client = getMercadoPagoSubscriptionClient()
     const backUrl = new URL('/painel/assinatura?checkout=success', `${appUrl.replace(/\/$/, '')}/`).toString()
     const planId = getMercadoPagoPlanId()
-    const reason = 'MeuInstrutor Pro'
+    const reason = 'DirecaoFacil Instrutor - Assinatura Mensal'
 
     const payload = planId
       ? {
