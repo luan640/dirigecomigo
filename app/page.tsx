@@ -18,7 +18,7 @@ async function loadHomeInstructors(): Promise<InstructorCard[]> {
 
 export default async function HomePage() {
   const instructors = await loadHomeInstructors()
-  const featuredInstructors = instructors.filter(i => i.is_verified).slice(0, 8)
+  const availableTodayInstructors = instructors.filter((instructor) => instructor.available_today).slice(0, 8)
 
   return (
     <>
@@ -26,7 +26,10 @@ export default async function HomePage() {
       <Navbar />
       <main>
         <HeroSection />
-        <InstructorCarousel instructors={featuredInstructors} />
+        <InstructorCarousel
+          instructors={availableTodayInstructors}
+          title="Instrutores disponíveis agora"
+        />
         <HowItWorks />
         <SearchSection instructors={instructors} />
         <InstructorCTA />

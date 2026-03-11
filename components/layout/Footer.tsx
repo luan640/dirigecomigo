@@ -124,12 +124,12 @@ export default function Footer() {
 
         <div className="flex flex-col items-center justify-between gap-4 text-sm md:flex-row">
           <p>
-            Copyright {new Date().getFullYear()} Direcao Facil. Todos os direitos reservados.
-            Fortaleza - CE, Brasil.
+            Copyright {new Date().getFullYear()} DirecaoFacil. Todos os direitos reservados.
+            Fortaleza e região metropolitana.
           </p>
-          <p className="text-xs text-gray-600">
+          {/* <p className="text-xs text-gray-600">
             Plataforma em modo demonstracao - dados ficticios para fins de apresentacao
-          </p>
+          </p> */}
         </div>
       </div>
     </footer>

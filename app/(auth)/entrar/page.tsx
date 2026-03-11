@@ -10,11 +10,14 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 const schema = z.object({
-  email: z.string().email('E-mail inválido'),
-  password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
+  email: z.string().email('E-mail invalido'),
+  password: z.string().min(6, 'Senha deve ter no minimo 6 caracteres'),
 })
 
 type FormData = z.infer<typeof schema>
+
+const inputClassName =
+  'w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:border-[var(--brand-orange)] focus:outline-none focus:ring-2 focus:ring-[#ffd7a8] focus:border-transparent'
 
 function EntrarContent() {
   const router = useRouter()
@@ -32,12 +35,10 @@ function EntrarContent() {
   async function onSubmit(data: FormData) {
     setLoading(true)
     try {
-      // Demo mode: simulate login
       const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
 
       if (DEMO_MODE) {
-        await new Promise(r => setTimeout(r, 800))
-        // Demo credentials
+        await new Promise((r) => setTimeout(r, 800))
         if (data.email === 'aluno@demo.com') {
           toast.success('Bem-vindo de volta!')
           if (redirectTo) {
@@ -61,7 +62,6 @@ function EntrarContent() {
         return
       }
 
-      // Production: Supabase auth
       const { createClient } = await import('@/lib/supabase/client')
       const supabase = createClient()
       const { data: signInData, error } = await supabase.auth.signInWithPassword({
@@ -74,22 +74,25 @@ function EntrarContent() {
       const user = signInData.user
       if (user) {
         const loadProfile = async () => {
-          const primary = await supabase
+          const primary = (await supabase
             .from('profiles')
             .select('role,onboarding_completed')
             .eq('id', user.id)
-            .maybeSingle() as { data: { role: string; onboarding_completed?: boolean } | null; error: Error | null }
+            .maybeSingle()) as {
+            data: { role: string; onboarding_completed?: boolean } | null
+            error: Error | null
+          }
 
           const primaryMessage = String(primary.error?.message || '')
           if (!primaryMessage.toLowerCase().includes('onboarding_completed')) {
             return primary
           }
 
-          const fallback = await supabase
+          const fallback = (await supabase
             .from('profiles')
             .select('role')
             .eq('id', user.id)
-            .maybeSingle() as { data: { role: string } | null; error: Error | null }
+            .maybeSingle()) as { data: { role: string } | null; error: Error | null }
 
           return {
             data: fallback.data ? { ...fallback.data, onboarding_completed: false } : null,
@@ -109,11 +112,11 @@ function EntrarContent() {
         const fallbackName =
           user.user_metadata?.full_name ||
           user.email?.split('@')[0] ||
-          'Usuário'
+          'Usuario'
 
-        // Ensure profile exists/synced so proxy role checks do not block login.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase.from('profiles') as any).upsert({
+        await (supabase.from('profiles') as never as {
+          upsert: (payload: Record<string, unknown>) => Promise<unknown>
+        }).upsert({
           id: user.id,
           email: user.email,
           full_name: fallbackName,
@@ -126,25 +129,41 @@ function EntrarContent() {
         let onboardingCompleted = Boolean(profile?.onboarding_completed)
 
         if (profile?.role === 'instructor' && !onboardingCompleted) {
-          // Mirror proxy fallback: if instructor setup or active subscription already exist,
-          // treat onboarding as completed even if the profile flag is stale.
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { data: instructor } = await (supabase.from('instructors') as any)
+          const { data: instructor } = await (
+            supabase.from('instructors') as never as {
+              select: (query: string) => {
+                eq: (column: string, value: string) => {
+                  maybeSingle: () => Promise<{ data: Record<string, unknown> | null }>
+                }
+              }
+            }
+          )
             .select('category,price_per_lesson,vehicle_type')
             .eq('id', user.id)
             .maybeSingle()
 
           const hasInstructorSetup = Boolean(
             instructor &&
-            String(instructor.category || '').trim() &&
-            Number(instructor.price_per_lesson || 0) >= 50
+              String(instructor.category || '').trim() &&
+              Number(instructor.price_per_lesson || 0) >= 50
           )
 
           if (hasInstructorSetup) {
             onboardingCompleted = true
           } else {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const { data: subscription } = await (supabase.from('subscriptions') as any)
+            const { data: subscription } = await (
+              supabase.from('subscriptions') as never as {
+                select: (query: string) => {
+                  eq: (column: string, value: string) => {
+                    order: (column: string, options?: { ascending?: boolean }) => {
+                      limit: (count: number) => {
+                        maybeSingle: () => Promise<{ data: Record<string, unknown> | null }>
+                      }
+                    }
+                  }
+                }
+              }
+            )
               .select('status,current_period_end,expires_at')
               .eq('instructor_id', user.id)
               .order('updated_at', { ascending: false })
@@ -156,9 +175,9 @@ function EntrarContent() {
             const today = new Date().toISOString().split('T')[0]
             const hasActiveSubscription = Boolean(
               subscription &&
-              status === 'active' &&
-              typeof endDateRaw === 'string' &&
-              String(endDateRaw).slice(0, 10) >= today
+                status === 'active' &&
+                typeof endDateRaw === 'string' &&
+                String(endDateRaw).slice(0, 10) >= today
             )
 
             if (hasActiveSubscription) {
@@ -195,39 +214,31 @@ function EntrarContent() {
 
   return (
     <>
-      <h1 className="text-2xl font-extrabold text-gray-900 mb-1">Entrar na plataforma</h1>
-      <p className="text-sm text-gray-500 mb-6">
-        Ainda não tem conta?{' '}
-        <Link href="/cadastro" className="text-blue-700 font-semibold hover:underline">
-          Cadastre-se grátis
+      <h1 className="mb-1 text-2xl font-extrabold text-gray-900">Autentique-se</h1>
+      <p className="mb-6 text-sm text-gray-500">
+        Ainda nao tem conta?{' '}
+        <Link href="/cadastro" className="font-semibold text-[var(--brand-orange)] hover:underline">
+          Cadastre-se gratis
         </Link>
       </p>
 
-      {/* Demo hint */}
-      {/* <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-6 text-xs text-blue-700">
-        <strong>Modo demo:</strong> use <code>aluno@demo.com</code> ou{' '}
-        <code>instrutor@demo.com</code> com qualquer senha
-      </div> */}
-
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
-          <label className="text-sm font-medium text-gray-700 block mb-1.5">E-mail</label>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700">E-mail</label>
           <input
             {...register('email')}
             type="email"
             autoComplete="email"
             placeholder="seu@email.com"
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className={inputClassName}
           />
-          {errors.email && (
-            <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>
-          )}
+          {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
         </div>
 
         <div>
-          <div className="flex items-center justify-between mb-1.5">
+          <div className="mb-1.5 flex items-center justify-between">
             <label className="text-sm font-medium text-gray-700">Senha</label>
-            <Link href="/recuperar-senha" className="text-xs text-blue-700 hover:underline">
+            <Link href="/recuperar-senha" className="text-xs text-[var(--brand-navy)] hover:underline">
               Esqueceu a senha?
             </Link>
           </div>
@@ -236,41 +247,39 @@ function EntrarContent() {
               {...register('password')}
               type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
-              placeholder="••••••••"
-              className="w-full px-4 py-3 pr-11 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="********"
+              className={`${inputClassName} pr-11`}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400 hover:text-[var(--brand-orange)]"
             >
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
-          {errors.password && (
-            <p className="text-xs text-red-500 mt-1">{errors.password.message}</p>
-          )}
+          {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>}
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+          className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand-orange)] px-4 py-3 font-semibold text-white transition-colors hover:bg-[#e45f00] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+          {loading && <Loader2 className="h-4 w-4 animate-spin" />}
           {loading ? 'Entrando...' : 'Entrar'}
         </button>
       </form>
 
       <div className="mt-4 text-center">
         <p className="text-xs text-gray-400">
-          Ao entrar você concorda com nossos{' '}
+          Ao entrar voce concorda com nossos{' '}
           <Link href="/termos" className="underline hover:text-gray-600">
             Termos de Uso
           </Link>{' '}
           e{' '}
           <Link href="/privacidade" className="underline hover:text-gray-600">
-            Política de Privacidade
+            Politica de Privacidade
           </Link>
         </p>
       </div>
@@ -283,8 +292,8 @@ export default function EntrarPage() {
     <Suspense
       fallback={
         <div className="py-6 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-            <Loader2 className="h-9 w-9 animate-spin text-blue-600" />
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#fff7db]">
+            <Loader2 className="h-9 w-9 animate-spin text-[var(--brand-orange)]" />
           </div>
           <h1 className="mb-2 text-2xl font-bold text-gray-900">Carregando acesso</h1>
           <p className="text-sm text-gray-500">Estamos preparando a tela de login.</p>

@@ -56,7 +56,6 @@ function AssinaturaContent() {
     if (sub.status !== 'active') return false
     return sub.current_period_end >= format(new Date(), 'yyyy-MM-dd')
   }, [sub])
-  const canManagePaymentMethod = isActive && sub.provider === 'stripe'
 
   const loadSubscription = async () => {
     setFetching(true)
@@ -80,15 +79,18 @@ function AssinaturaContent() {
 
   useEffect(() => {
     const checkoutStatus = searchParams.get('checkout')
-    const sessionId = searchParams.get('session_id')
+    const preapprovalId = searchParams.get('preapproval_id')
     const syncCheckout = async () => {
-      if (!sessionId) {
+      if (!preapprovalId && checkoutStatus !== 'success') {
         await loadSubscription()
         return
       }
 
       try {
-        const res = await fetch(`/api/subscriptions/verify?session_id=${encodeURIComponent(sessionId)}`, {
+        const verifyUrl = preapprovalId
+          ? `/api/subscriptions/verify?preapproval_id=${encodeURIComponent(preapprovalId)}`
+          : '/api/subscriptions/verify'
+        const res = await fetch(verifyUrl, {
           cache: 'no-store',
         })
         const payload = await res.json()
@@ -104,19 +106,12 @@ function AssinaturaContent() {
     }
 
     if (checkoutStatus === 'success') {
-      toast.success('Checkout concluido. A assinatura sera confirmada assim que o Stripe enviar o webhook.')
+      toast.success('Checkout concluido. A assinatura sera confirmada assim que o Mercado Pago autorizar a cobranca.')
       void syncCheckout()
     }
     if (checkoutStatus === 'cancelled') {
       toast.info('Checkout cancelado.')
       router.replace('/painel/assinatura')
-    }
-    if (searchParams.get('portal') === 'returned') {
-      toast.success('Forma de pagamento atualizada.')
-      void loadSubscription().then(() => {
-        router.refresh()
-        router.replace('/painel/assinatura')
-      })
     }
   }, [router, searchParams])
 
@@ -129,7 +124,7 @@ function AssinaturaContent() {
       const payload = await res.json()
       if (!res.ok) throw new Error(payload?.error || 'Falha ao ativar assinatura.')
       if (payload?.redirect_url) {
-        toast.info('Voce sera redirecionado para o checkout seguro do Stripe.')
+        toast.info('Voce sera redirecionado para o checkout seguro do Mercado Pago.')
         window.location.href = String(payload.redirect_url)
         return
       }
@@ -153,26 +148,6 @@ function AssinaturaContent() {
       toast.info('Assinatura cancelada.')
     } catch (err) {
       toast.error((err as Error).message || 'Erro ao cancelar assinatura.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleManagePaymentMethod = async () => {
-    setLoading(true)
-    try {
-      const res = await fetch('/api/subscriptions/activate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ intent: 'manage-payment-method' }),
-      })
-      const payload = await res.json()
-      if (!res.ok) throw new Error(payload?.error || 'Falha ao abrir o gerenciamento da assinatura.')
-      if (payload?.redirect_url) {
-        window.location.href = String(payload.redirect_url)
-      }
-    } catch (err) {
-      toast.error((err as Error).message || 'Erro ao abrir o gerenciamento da assinatura.')
     } finally {
       setLoading(false)
     }
@@ -210,7 +185,7 @@ function AssinaturaContent() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-sm text-gray-500">Plano atual</p>
-                <p className="text-xl font-extrabold text-gray-900 mt-0.5">Direcao Facil Pro</p>
+                <p className="text-xl font-extrabold text-gray-900 mt-0.5">DirecaoFacil Pro</p>
               </div>
               <span className={`text-sm font-bold px-3 py-1 rounded-full ${statusConfig[sub.status].cls}`}>
                 {statusConfig[sub.status].label}
@@ -233,16 +208,16 @@ function AssinaturaContent() {
                 <p className="font-medium text-gray-700 mt-0.5 text-sm">{formatDate(sub.current_period_start)}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-400">Comissao por aula</p>
+                <p className="text-xs text-gray-400">Comissão por aula</p>
                 <p className="font-bold text-gray-900 mt-0.5">8%</p>
               </div>
             </div>
 
             {!isActive && (
               <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-3">
-                <p className="text-sm font-semibold text-gray-800">Pagamento recorrente seguro no Stripe</p>
+                <p className="text-sm font-semibold text-gray-800">Pagamento recorrente seguro no Mercado Pago</p>
                 <p className="text-xs text-gray-500">
-                  Voce sera redirecionado para um ambiente seguro do Stripe para cadastrar o cartao e confirmar a assinatura de {formatCurrency(PLATFORM_CONFIG.INSTRUCTOR_SUBSCRIPTION_PRICE)}/mes.
+                  Voce sera redirecionado para um ambiente seguro do Mercado Pago para autorizar a assinatura de {formatCurrency(PLATFORM_CONFIG.INSTRUCTOR_SUBSCRIPTION_PRICE)}/mes.
                 </p>
               </div>
             )}
@@ -255,17 +230,7 @@ function AssinaturaContent() {
                   className="flex-1 py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-xl flex items-center justify-center gap-2 text-sm transition-colors disabled:opacity-60"
                 >
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
-                  Ir para checkout seguro do Stripe
-                </button>
-              )}
-              {canManagePaymentMethod && (
-                <button
-                  onClick={handleManagePaymentMethod}
-                  disabled={loading}
-                  className="flex-1 py-2.5 border border-blue-200 text-blue-700 hover:text-blue-800 hover:border-blue-300 font-semibold rounded-xl flex items-center justify-center gap-2 text-sm transition-colors disabled:opacity-60"
-                >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
-                  Trocar forma de pagamento
+                  Ir para checkout seguro do Mercado Pago
                 </button>
               )}
               {isActive && (

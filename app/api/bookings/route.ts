@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 import { generateScheduleWindow, normalizeWeeklyScheduleSettings } from '@/lib/schedule'
+import { getLocalTimestampForDateTime, getSaoPauloNow, getSaoPauloToday, parseDateString } from '@/lib/timezone'
 
 function canManageStatus(status: string) {
   return status === 'pending' || status === 'confirmed'
@@ -41,6 +42,8 @@ export async function GET(req: Request) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase as any
+    const today = getSaoPauloToday()
+    const now = getSaoPauloNow()
     const bookingLookup = await db
       .from('bookings')
       .select('id, instructor_id, status, scheduled_date, start_time')
@@ -67,7 +70,7 @@ export async function GET(req: Request) {
         .from('bookings')
         .select('scheduled_date,start_time,status')
         .eq('instructor_id', user.id)
-        .gte('scheduled_date', new Date().toISOString().slice(0, 10)),
+        .gte('scheduled_date', today),
     ])
 
     if (instructorLookup.error) {
@@ -78,7 +81,7 @@ export async function GET(req: Request) {
     }
 
     const minAdvanceHours = Number(instructorLookup.data?.min_advance_booking_hours || 2)
-    const minBookingTs = Date.now() + minAdvanceHours * 60 * 60 * 1000
+    const minBookingTs = now.getTime() + minAdvanceHours * 60 * 60 * 1000
     const bookedLookup = new Set<string>(
       (Array.isArray(bookingsResult.data) ? bookingsResult.data : [])
         .filter((row: { status?: string; scheduled_date?: string; start_time?: string }) => {
@@ -100,9 +103,10 @@ export async function GET(req: Request) {
     const slots = generateScheduleWindow({
       settings: weeklySchedule,
       bookedLookup,
+      startDate: now,
       daysAhead: 60,
     })
-      .filter((slot) => new Date(`${slot.date}T${slot.start_time}`).getTime() >= minBookingTs)
+      .filter((slot) => getLocalTimestampForDateTime(slot.date, slot.start_time) >= minBookingTs)
       .map((slot) => ({
         id: slot.id,
         date: slot.date,
@@ -157,13 +161,16 @@ export async function POST(req: Request) {
     }
 
     if (mode === 'complete') {
-      const lessonEnd = new Date(`${String(bookingLookup.data.scheduled_date || '')}T${String(bookingLookup.data.end_time || bookingLookup.data.start_time || '')}`)
-      if (Number.isNaN(lessonEnd.getTime())) {
-        return NextResponse.json({ error: 'Horario da aula invalido.' }, { status: 400 })
+      const lessonEndTs = getLocalTimestampForDateTime(
+        String(bookingLookup.data.scheduled_date || ''),
+        String(bookingLookup.data.end_time || bookingLookup.data.start_time || ''),
+      )
+      if (Number.isNaN(lessonEndTs)) {
+        return NextResponse.json({ error: 'Horário da aula inválido.' }, { status: 400 })
       }
 
-      if (lessonEnd.getTime() > Date.now()) {
-        return NextResponse.json({ error: 'A aula ainda nao terminou para ser finalizada.' }, { status: 400 })
+      if (lessonEndTs > getSaoPauloNow().getTime()) {
+        return NextResponse.json({ error: 'A aula ainda não terminou para ser finalizada.' }, { status: 400 })
       }
 
       const completeResult = await db
@@ -207,14 +214,14 @@ export async function POST(req: Request) {
     }
 
     if (slotLookup?.data?.is_booked) {
-      return NextResponse.json({ error: 'Este horario acabou de ser ocupado. Escolha outro.' }, { status: 409 })
+      return NextResponse.json({ error: 'Este horário acabou de ser ocupado. Escolha outro.' }, { status: 409 })
     }
 
     const nextDate = slotLookup?.data?.date || requestedDate
     const nextStartTime = slotLookup?.data?.start_time || requestedStartTime
     const nextEndTime = slotLookup?.data?.end_time || requestedEndTime
     if (!nextDate || !nextStartTime || !nextEndTime) {
-      return NextResponse.json({ error: 'Dados do novo horario estao incompletos.' }, { status: 400 })
+      return NextResponse.json({ error: 'Dados do novo horário estão incompletos.' }, { status: 400 })
     }
 
     if (!slotLookup) {
@@ -233,10 +240,10 @@ export async function POST(req: Request) {
       ])
 
       if (instructorLookup.error) {
-        return NextResponse.json({ error: instructorLookup.error.message || 'Nao foi possivel validar a agenda.' }, { status: 500 })
+        return NextResponse.json({ error: instructorLookup.error.message || 'Não foi possível validar a agenda.' }, { status: 500 })
       }
       if (bookingsResult.error) {
-        return NextResponse.json({ error: bookingsResult.error.message || 'Nao foi possivel validar o horario.' }, { status: 500 })
+        return NextResponse.json({ error: bookingsResult.error.message || 'Não foi possivel validar o horário.' }, { status: 500 })
       }
 
       const bookedLookup = new Set<string>(
@@ -258,12 +265,12 @@ export async function POST(req: Request) {
       const allowedSlot = generateScheduleWindow({
         settings: weeklySchedule,
         bookedLookup,
-        startDate: new Date(`${nextDate}T00:00:00`),
+        startDate: parseDateString(nextDate),
         daysAhead: 0,
       }).find((slot) => slot.date === nextDate && slot.start_time === nextStartTime)
 
       if (!allowedSlot || allowedSlot.end_time !== nextEndTime) {
-        return NextResponse.json({ error: 'Este horario nao esta mais disponivel na agenda semanal.' }, { status: 409 })
+        return NextResponse.json({ error: 'Este horário não esta mais disponível na agenda semanal.' }, { status: 409 })
       }
     }
 

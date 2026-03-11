@@ -9,7 +9,7 @@ import { CheckCircle2, ChevronRight, Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { BRAZIL_STATES } from '@/constants/locations'
-import { geocodeCepAction } from '@/lib/location'
+import { searchLocationSuggestionsAction, type AddressSuggestion } from '@/lib/location'
 import { createClient } from '@/lib/supabase/client'
 import { deleteAvatarAction, uploadAvatarAction } from '@/app/(painel)/painel/perfil/actions'
 
@@ -64,14 +64,6 @@ type OnboardingInstructorRow = {
   state?: string | null
   latitude?: number | null
   longitude?: number | null
-}
-
-type AddressSuggestion = {
-  cep: string
-  logradouro: string
-  bairro: string
-  localidade: string
-  uf: string
 }
 
 function getFallbackLetter(name: string) {
@@ -133,29 +125,8 @@ function OnboardingContent() {
 
     const timer = window.setTimeout(async () => {
       try {
-        const encodedQuery = encodeURIComponent(query)
-        const urls = [
-          `https://viacep.com.br/ws/CE/Fortaleza/${encodedQuery}/json/`,
-          `https://viacep.com.br/ws/CE/Caucaia/${encodedQuery}/json/`,
-        ]
-
-        const responses = await Promise.all(urls.map(url => fetch(url, { cache: 'no-store' })))
-        const payloads = await Promise.all(
-          responses.map(async response => {
-            if (!response.ok) return []
-            const data = await response.json()
-            return Array.isArray(data) ? data : []
-          }),
-        )
-
         if (!active) return
-
-        const merged = payloads
-          .flat()
-          .filter((item): item is AddressSuggestion => Boolean(item?.cep && item?.bairro && item?.localidade))
-          .slice(0, 10)
-
-        setLocationSuggestions(merged)
+        setLocationSuggestions(await searchLocationSuggestionsAction(query))
       } catch {
         if (active) setLocationSuggestions([])
       } finally {
@@ -450,23 +421,8 @@ function OnboardingContent() {
     setSelectedCity(address.localidade)
     setSelectedState(address.uf)
     setShowLocationSuggestions(false)
-
-    try {
-      const geocoded = await geocodeCepAction(address.cep)
-      if (!geocoded) {
-        setSelectedLatitude(null)
-        setSelectedLongitude(null)
-        toast.error('Nao foi possivel obter latitude e longitude para esse endereco.')
-        return
-      }
-
-      setSelectedLatitude(geocoded.latitude)
-      setSelectedLongitude(geocoded.longitude)
-    } catch {
-      setSelectedLatitude(null)
-      setSelectedLongitude(null)
-      toast.error('Nao foi possivel obter latitude e longitude para esse endereco.')
-    }
+    setSelectedLatitude(address.latitude)
+    setSelectedLongitude(address.longitude)
   }
 
   if (done) {
@@ -605,11 +561,11 @@ function OnboardingContent() {
               {showLocationSuggestions && (loadingLocationSuggestions || locationSuggestions.length > 0) && (
                 <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
                   {loadingLocationSuggestions && (
-                    <div className="px-4 py-3 text-sm text-gray-500">Buscando em Fortaleza e Caucaia...</div>
+                    <div className="px-4 py-3 text-sm text-gray-500">Buscando enderecos...</div>
                   )}
                   {!loadingLocationSuggestions && locationSuggestions.map(item => (
                     <button
-                      key={`${item.cep}-${item.logradouro}-${item.bairro}`}
+                      key={item.id}
                       type="button"
                       onMouseDown={event => {
                         event.preventDefault()
@@ -618,11 +574,13 @@ function OnboardingContent() {
                       className="block w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-blue-50"
                     >
                       <span className="block font-medium text-gray-900">{item.logradouro || item.bairro}</span>
-                      <span className="block text-xs text-gray-500">{item.bairro} · {item.localidade} · CEP {item.cep}</span>
+                      <span className="block text-xs text-gray-500">
+                        {[item.bairro, item.localidade, item.cep ? `CEP ${item.cep}` : ''].filter(Boolean).join(' · ')}
+                      </span>
                     </button>
                   ))}
                   {!loadingLocationSuggestions && locationSuggestions.length === 0 && locationQuery.trim().length >= 3 && (
-                    <div className="px-4 py-3 text-sm text-gray-500">Nenhum endereco encontrado em Fortaleza ou Caucaia.</div>
+                    <div className="px-4 py-3 text-sm text-gray-500">Nenhum endereco encontrado.</div>
                   )}
                 </div>
               )}

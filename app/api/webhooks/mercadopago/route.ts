@@ -26,20 +26,18 @@ function mapMercadoPagoStatus(status?: string): 'pending' | 'processing' | 'paid
 
 export async function POST(req: Request) {
   try {
-    const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN
-    if (!accessToken) {
-      return NextResponse.json({ ok: false, error: 'MERCADOPAGO_ACCESS_TOKEN não configurado.' }, { status: 500 })
-    }
-
     const payload = await req.json().catch(() => ({}))
     const url = new URL(req.url)
     const type = String(payload?.type || payload?.topic || url.searchParams.get('type') || url.searchParams.get('topic') || '')
     const resourceId = String(payload?.data?.id || payload?.id || '')
 
-    const client = new MercadoPagoConfig({ accessToken })
-
     if (type === 'payment' && resourceId) {
-      const paymentClient = new Payment(client)
+      const paymentsAccessToken = process.env.MERCADOPAGO_ACCESS_TOKEN
+      if (!paymentsAccessToken) {
+        return NextResponse.json({ ok: false, error: 'MERCADOPAGO_ACCESS_TOKEN nao configurado.' }, { status: 500 })
+      }
+
+      const paymentClient = new Payment(new MercadoPagoConfig({ accessToken: paymentsAccessToken }))
       const mpPayment = await paymentClient.get({ id: resourceId })
       await persistMercadoPagoPayment({
         paymentId: String(mpPayment.id || resourceId),
@@ -58,7 +56,17 @@ export async function POST(req: Request) {
       type.includes('authorized_payment')
 
     if (isSubscriptionTopic && resourceId) {
-      const preapprovalClient = new PreApproval(client)
+      const subscriptionAccessToken =
+        process.env.MERCADOPAGO_ACCESS_TOKEN_ASSINATURA ||
+        process.env.MERCADOPAGO_ACCESS_TOKEN
+      if (!subscriptionAccessToken) {
+        return NextResponse.json(
+          { ok: false, error: 'MERCADOPAGO_ACCESS_TOKEN_ASSINATURA nao configurado.' },
+          { status: 500 },
+        )
+      }
+
+      const preapprovalClient = new PreApproval(new MercadoPagoConfig({ accessToken: subscriptionAccessToken }))
       const preapproval = await preapprovalClient.get({ id: resourceId })
 
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -77,7 +85,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true })
   } catch {
-    // Always acknowledge to avoid repeated retries while integrating persistence.
     return NextResponse.json({ ok: true })
   }
 }

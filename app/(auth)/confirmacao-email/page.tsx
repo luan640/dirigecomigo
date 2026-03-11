@@ -121,7 +121,7 @@ function ConfirmacaoEmailContent() {
         href="/entrar"
         className="inline-flex items-center justify-center rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-800"
       >
-        Ir para entrar
+        Entrar
       </Link>
     </div>
   )

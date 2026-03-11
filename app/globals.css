@@ -2,25 +2,50 @@
 @import "leaflet/dist/leaflet.css";
 
 :root {
-  --brand-primary: #7C3AED;
-  --brand-primary-dark: #6D28D9;
-  --brand-teal: #14B8A6;
-  --brand-emerald: #10B981;
-  --brand-emerald-dark: #047857;
-  --surface: #F8FAFC;
+  --brand-navy: #031f4a;
+  --brand-navy-soft: #10356c;
+  --brand-blue-deep: #08285b;
+  --brand-yellow: #f6c400;
+  --brand-orange: #ff6b00;
+  --brand-green: #17b44a;
+  --brand-lime: #8ccf10;
+  --surface: #f4f8fc;
   --radius: 0.625rem;
+  --background: #f7fbff;
+  --foreground: #10233f;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-navy-soft: var(--brand-navy-soft);
+  --color-brand-yellow: var(--brand-yellow);
+  --color-brand-orange: var(--brand-orange);
+  --color-brand-green: var(--brand-green);
+  --color-brand-lime: var(--brand-lime);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
 @layer base {
   * {
     box-sizing: border-box;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background-color: var(--surface);
-    color: #111827;
+    background:
+      radial-gradient(circle at top, rgba(246, 196, 0, 0.06), transparent 30%),
+      linear-gradient(180deg, #f9fcff 0%, #f4f8fc 100%);
+    color: var(--foreground);
+    font-family: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     -webkit-font-smoothing: antialiased;
   }
+
   h1, h2, h3, h4, h5, h6 {
     font-weight: 700;
     line-height: 1.2;
@@ -34,6 +59,7 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
   .line-clamp-3 {
     display: -webkit-box;
     -webkit-line-clamp: 3;
@@ -42,69 +68,47 @@
   }
 }
 
-/* Leaflet map z-index fixes for Next.js */
 .leaflet-container {
   z-index: 1;
 }
+
 .leaflet-pane,
 .leaflet-top,
 .leaflet-bottom {
   z-index: 1 !important;
 }
+
 .leaflet-control {
   z-index: 2 !important;
 }
+
 .leaflet-popup {
   z-index: 3 !important;
 }
 
-/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
 }
+
 ::-webkit-scrollbar-track {
-  background: #F1F5F9;
+  background: #edf3f8;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
+  background: #b9cad9;
   border-radius: 3px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+  background: #8ea6bf;
 }
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-/* ─── Animation Keyframes ──────────────────────────────────── */
 
 @keyframes fadeUp {
   from {
     opacity: 0;
     transform: translateY(28px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -113,27 +117,25 @@ body {
 
 @keyframes blob {
   0%, 100% { transform: translate(0px, 0px) scale(1); }
-  25%       { transform: translate(24px, -36px) scale(1.08); }
-  50%       { transform: translate(-14px, 22px) scale(0.94); }
-  75%       { transform: translate(32px, 14px) scale(1.04); }
+  25% { transform: translate(24px, -36px) scale(1.08); }
+  50% { transform: translate(-14px, 22px) scale(0.94); }
+  75% { transform: translate(32px, 14px) scale(1.04); }
 }
 
 @keyframes shimmerText {
-  0%   { background-position: -200% center; }
+  0% { background-position: -200% center; }
   100% { background-position: 200% center; }
 }
 
 @keyframes floatY {
   0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-14px); }
+  50% { transform: translateY(-14px); }
 }
 
 @keyframes spinSlow {
   from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  to { transform: rotate(360deg); }
 }
-
-/* ─── Animation Utility Classes ──────────────────────────────── */
 
 .animate-fade-up {
   animation: fadeUp 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -151,19 +153,28 @@ body {
   animation: spinSlow 20s linear infinite;
 }
 
-/* ─── Gradient Text ──────────────────────────────────────────── */
+.brand-panel {
+  background: linear-gradient(145deg, rgba(3, 31, 74, 0.96), rgba(8, 40, 91, 0.94));
+}
+
+.brand-outline {
+  border-color: rgba(255, 255, 255, 0.14);
+}
 
 .gradient-text {
+  display: inline-block;
   background: linear-gradient(
     135deg,
-    #8b5cf6 0%,
-    #14b8a6 40%,
-    #34d399 70%,
-    #8b5cf6 100%
+    var(--brand-orange) 0%,
+    var(--brand-yellow) 38%,
+    var(--brand-lime) 68%,
+    var(--brand-green) 100%
   );
-  background-size: 200% auto;
+  background-size: 240% 100%;
+  background-position: 0% center;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: shimmerText 4s linear infinite;
+  will-change: background-position;
+  animation: shimmerText 2.8s ease-in-out infinite alternate;
 }

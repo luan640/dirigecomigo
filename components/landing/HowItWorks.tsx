@@ -6,107 +6,130 @@ const steps = [
     number: '01',
     title: 'Busque',
     description:
-      'Pesquise instrutores pelo seu bairro ou cidade. Veja avaliações, preços e disponibilidade em tempo real.',
-    gradient: 'from-violet-500/20 to-violet-600/5',
-    iconBg: 'bg-violet-100 text-violet-700',
-    numColor: 'text-violet-500',
-    border: 'hover:border-violet-200',
+      'Pesquise instrutores pelo seu bairro ou cidade. Veja avaliacoes, precos e disponibilidade em tempo real.',
+    gradient: 'from-[rgba(255,107,0,0.18)] to-transparent',
+    iconBg: 'bg-[#fff1e8] text-[#d95c00]',
+    numColor: 'text-[#ff6b00]',
+    border: 'hover:border-[#ffd7c2]',
   },
   {
     icon: Calendar,
     number: '02',
     title: 'Agende',
     description:
-      'Escolha o horário ideal direto no calendário do instrutor. Confirme o agendamento e pague com segurança.',
-    gradient: 'from-teal-500/20 to-teal-600/5',
-    iconBg: 'bg-teal-100 text-teal-700',
-    numColor: 'text-teal-500',
-    border: 'hover:border-teal-200',
+      'Escolha o horário ideal direto no calendario do instrutor. Confirme o agendamento e pague com seguranca.',
+    gradient: 'from-[rgba(246,196,0,0.18)] to-transparent',
+    iconBg: 'bg-[#fff6cc] text-[#8a6a00]',
+    numColor: 'text-[#dca400]',
+    border: 'hover:border-[#f8e08f]',
   },
   {
     icon: Car,
     number: '03',
-    title: 'Faça sua aula',
+    title: 'Faca sua aula',
     description:
-      'O instrutor vai até você. Aprenda a dirigir com confiança. Após a aula, deixe sua avaliação.',
-    gradient: 'from-emerald-500/20 to-emerald-600/5',
-    iconBg: 'bg-emerald-100 text-emerald-700',
-    numColor: 'text-emerald-500',
-    border: 'hover:border-emerald-200',
+      'O instrutor vai ate voce. Aprenda a dirigir com confiança. Após a aula, deixe sua avaliação.',
+    gradient: 'from-[rgba(23,180,74,0.18)] to-transparent',
+    iconBg: 'bg-[#e8f8ee] text-[#12853a]',
+    numColor: 'text-[#17b44a]',
+    border: 'hover:border-[#b9ebc9]',
   },
 ]
 
 const trustBadges = [
-  { label: 'Instrutores verificados', sub: 'Documentação conferida', icon: CheckCircle, color: 'text-violet-600', bg: 'bg-violet-50' },
-  { label: 'Pagamento seguro', sub: 'Criptografia SSL', icon: Lock, color: 'text-teal-600', bg: 'bg-teal-50' },
-  { label: 'Cancelamento grátis', sub: 'Até 24h antes', icon: X, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-  { label: 'Suporte ativo', sub: 'Segunda a sábado', icon: Headphones, color: 'text-amber-600', bg: 'bg-amber-50' },
+  {
+    label: 'Instrutores verificados',
+    sub: 'Documentacao conferida',
+    icon: CheckCircle,
+    color: 'text-[#d95c00]',
+    bg: 'bg-[#fff1e8]',
+  },
+  {
+    label: 'Pagamento seguro',
+    sub: 'Criptografia SSL',
+    icon: Lock,
+    color: 'text-[#8a6a00]',
+    bg: 'bg-[#fff6cc]',
+  },
+  {
+    label: 'Cancelamento grátis',
+    sub: 'Ate 24h antes',
+    icon: X,
+    color: 'text-emerald-600',
+    bg: 'bg-emerald-50',
+  },
+  {
+    label: 'Suporte ativo',
+    sub: 'Segunda a sábado',
+    icon: Headphones,
+    color: 'text-amber-600',
+    bg: 'bg-amber-50',
+  },
 ]
 
 export default function HowItWorks() {
   return (
-    <section id="como-funciona" className="py-24 bg-slate-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <span className="inline-block text-xs font-bold text-violet-600 uppercase tracking-[0.18em] bg-violet-50 border border-violet-100 px-4 py-1.5 rounded-full mb-4">
+    <section id="como-funciona" className="bg-[#f4f8fc] py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mb-16 text-center">
+          <span className="mb-4 inline-block rounded-full border border-[#ffe0bd] bg-[#fff1e8] px-4 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-[#d95c00]">
             Simples e rápido
           </span>
-          <h2 className="text-3xl md:text-4xl font-black text-gray-900 mt-2 mb-4">
+          <h2 className="mt-2 mb-4 text-3xl font-black text-gray-900 md:text-4xl">
             Como funciona
           </h2>
-          <p className="text-lg text-gray-500 max-w-xl mx-auto leading-relaxed">
-            Em menos de 5 minutos você encontra um instrutor qualificado e agenda sua primeira aula.
+          <p className="mx-auto max-w-xl text-lg leading-relaxed text-gray-500">
+            Em menos de 5 minutos vocâ encontra um instrutor qualificado e agenda sua primeira aula.
           </p>
         </div>
 
-        {/* Steps */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-          {steps.map((step, i) => (
+        <div className="mb-16 grid grid-cols-1 gap-6 md:grid-cols-3">
+          {steps.map((step) => (
             <div
               key={step.number}
-              className={`relative bg-white rounded-3xl p-8 border border-gray-100 ${step.border} shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group overflow-hidden`}
+              className={`group relative overflow-hidden rounded-3xl border border-gray-100 bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${step.border}`}
             >
-              {/* Background gradient blob */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${step.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-3xl`} />
+              <div
+                className={`absolute inset-0 rounded-3xl bg-gradient-to-br ${step.gradient} opacity-0 transition-opacity duration-300 group-hover:opacity-100`}
+              />
 
-              {/* Step number */}
-              <span className={`relative text-6xl font-black ${step.numColor} opacity-15 absolute top-4 right-6 select-none`}>
+              <span
+                className={`absolute top-4 right-6 select-none text-6xl font-black opacity-15 ${step.numColor}`}
+              >
                 {step.number}
               </span>
 
               <div className="relative z-10">
-                {/* Icon */}
-                <div className={`w-14 h-14 rounded-2xl ${step.iconBg} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
-                  <step.icon className="w-7 h-7" />
+                <div
+                  className={`mb-6 flex h-14 w-14 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-110 ${step.iconBg}`}
+                >
+                  <step.icon className="h-7 w-7" />
                 </div>
 
-                {/* Connector dot (desktop) */}
-                {i < steps.length - 1 && (
-                  <div className="hidden md:block absolute top-[3.5rem] -right-3 w-6 h-6 bg-white border-2 border-gray-200 rounded-full z-20 flex items-center justify-center">
-                    <div className="w-2 h-2 bg-gray-300 rounded-full" />
+                {/* {i < steps.length - 1 && (
+                  <div className="absolute top-[3.5rem] -right-3 z-20 hidden h-6 w-6 items-center justify-center rounded-full border-2 border-gray-200 bg-white md:flex">
+                    <div className="h-2 w-2 rounded-full bg-gray-300" />
                   </div>
-                )}
+                )} */}
 
-                <h3 className="text-xl font-bold text-gray-900 mb-3">{step.title}</h3>
-                <p className="text-gray-500 leading-relaxed text-sm">{step.description}</p>
+                <h3 className="mb-3 text-xl font-bold text-gray-900">{step.title}</h3>
+                <p className="text-sm leading-relaxed text-gray-500">{step.description}</p>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Trust badges */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {trustBadges.map(badge => (
             <div
               key={badge.label}
-              className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm text-center hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+              className="rounded-2xl border border-gray-100 bg-white p-5 text-center shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             >
-              <div className={`w-10 h-10 ${badge.bg} rounded-xl mx-auto mb-3 flex items-center justify-center`}>
-                <badge.icon className={`w-5 h-5 ${badge.color}`} />
+              <div className={`mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${badge.bg}`}>
+                <badge.icon className={`h-5 w-5 ${badge.color}`} />
               </div>
               <p className="text-sm font-bold text-gray-900">{badge.label}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{badge.sub}</p>
+              <p className="mt-0.5 text-xs text-gray-400">{badge.sub}</p>
             </div>
           ))}
         </div>

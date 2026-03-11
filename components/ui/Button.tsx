@@ -8,9 +8,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles = {
-  primary: 'bg-violet-600 text-white hover:bg-violet-700 active:bg-violet-800',
-  secondary: 'bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800',
-  outline: 'border-2 border-violet-600 text-violet-600 hover:bg-violet-50 active:bg-violet-100',
+  primary:
+    'bg-[var(--brand-orange)] text-white hover:bg-[#e45f00] active:bg-[#cc5500] shadow-[0_14px_30px_rgba(255,107,0,0.22)]',
+  secondary: 'bg-[var(--brand-green)] text-white hover:bg-[#12943d] active:bg-[#0f7f35]',
+  outline:
+    'border-2 border-[var(--brand-navy)] text-[var(--brand-navy)] hover:bg-[#edf4fb] active:bg-[#dce9f7]',
   ghost: 'text-gray-700 hover:bg-gray-100 active:bg-gray-200',
   danger: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800',
 }
@@ -29,8 +31,8 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || loading}
         className={cn(
           'inline-flex items-center justify-center gap-2 font-semibold transition-all duration-150',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
-          'disabled:opacity-50 disabled:cursor-not-allowed',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-yellow)] focus-visible:ring-offset-2',
+          'disabled:cursor-not-allowed disabled:opacity-50',
           variantStyles[variant],
           sizeStyles[size],
           className
@@ -39,7 +41,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       >
         {loading && (
           <svg
-            className="animate-spin -ml-1 w-4 h-4"
+            className="animate-spin -ml-1 h-4 w-4"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"

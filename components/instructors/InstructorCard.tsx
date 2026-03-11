@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { Star, MapPin, Car, CheckCircle2 } from 'lucide-react'
+import { MapPin, Car, CheckCircle2 } from 'lucide-react'
 import type { InstructorCard as InstructorCardType } from '@/types'
 import { normalizePlatformPricingSettings, type PlatformPricingSettings } from '@/lib/platformPricing'
 import { formatCurrency, getAvailabilityLabel } from '@/utils/format'
@@ -30,80 +30,70 @@ export default function InstructorCard({
     `https://ui-avatars.com/api/?name=${encodeURIComponent(instructor.name)}&background=1D4ED8&color=fff&size=200`
 
   return (
-    <Link href={`/instrutor/${instructor.id}`} className="block group">
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 overflow-hidden">
-        {/* Header */}
+    <Link href={`/instrutor/${instructor.id}`} className="group block">
+      <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
         <div className="relative p-5 pb-0">
-          {/* Availability badge */}
           <div className="absolute top-4 right-4">
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${availability.color}`}>
+            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${availability.color}`}>
               {availability.label}
             </span>
           </div>
 
           <div className="flex items-start gap-4">
-            {/* Avatar */}
             <div className="relative flex-shrink-0">
-              <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gray-100">
+              <div className="h-16 w-16 overflow-hidden rounded-2xl bg-gray-100">
                 <Image
                   src={avatarUrl}
                   alt={instructor.name}
                   width={64}
                   height={64}
-                  className="w-full h-full object-cover"
+                  className="h-full w-full object-cover"
                 />
               </div>
               {instructor.is_verified && (
-                <div className="absolute -bottom-1 -right-1 bg-violet-600 rounded-full p-0.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                <div className="absolute -right-1 -bottom-1 rounded-full bg-violet-600 p-0.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-white" />
                 </div>
               )}
             </div>
 
-            {/* Info */}
-            <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-gray-900 text-base leading-tight group-hover:text-violet-600 transition-colors truncate">
+            <div className="min-w-0 flex-1">
+              <h3 className="truncate text-base font-bold leading-tight text-gray-900 transition-colors group-hover:text-violet-600">
                 {instructor.name}
               </h3>
 
-              {/* Rating */}
-              <div className="flex items-center gap-1.5 mt-1">
-                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                <span className="text-sm font-semibold text-gray-900">{instructor.rating.toFixed(1)}</span>
-                <span className="text-sm text-gray-400">({instructor.review_count} avaliações)</span>
+              <div className="mt-1 text-sm text-gray-500">
+                ({instructor.total_lessons} aulas)
               </div>
 
-              {/* Location */}
-              <div className="flex items-center gap-1 mt-1">
-                <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                <span className="text-sm text-gray-500 truncate">
-                  {instructor.neighborhood} — {instructor.city}/{instructor.state}
+              <div className="mt-1 flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-gray-400" />
+                <span className="truncate text-sm text-gray-500">
+                  {instructor.neighborhood} - {instructor.city}/{instructor.state}
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Body */}
         {!compact && (
           <div className="px-5 py-3">
-            <p className="text-sm text-gray-600 line-clamp-2">{instructor.bio}</p>
+            <p className="line-clamp-2 text-sm text-gray-600">{instructor.bio}</p>
           </div>
         )}
 
-        {/* Footer */}
-        <div className="px-5 py-4 border-t border-gray-50 flex items-center justify-between">
+        <div className="flex items-center justify-between border-t border-gray-50 px-5 py-4">
           <div className="flex items-center gap-2">
-            <Car className="w-4 h-4 text-gray-400" />
+            <Car className="h-4 w-4 text-gray-400" />
             <span className="text-xs text-gray-500">
-              Cat. {instructor.category} · {instructor.total_lessons} aulas
+              Cat. {instructor.category} - {instructor.total_lessons} aulas
             </span>
           </div>
           <div className="text-right">
             <span className="text-xl font-bold text-violet-600">
               {formatCurrency(studentVisiblePrice)}
             </span>
-            <span className="text-xs text-gray-400 block">por aula</span>
+            <span className="block text-xs text-gray-400">por aula</span>
           </div>
         </div>
       </div>

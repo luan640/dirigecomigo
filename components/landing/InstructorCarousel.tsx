@@ -12,13 +12,13 @@ interface InstructorCarouselProps {
 
 export default function InstructorCarousel({
   instructors,
-  title = 'Instrutores em destaque',
+  title = 'Instrutores',
 }: InstructorCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   function scroll(direction: 'left' | 'right') {
     if (!scrollRef.current) return
-    const cardWidth = 320 // approximate card width + gap
+    const cardWidth = 320
     scrollRef.current.scrollBy({
       left: direction === 'left' ? -cardWidth * 2 : cardWidth * 2,
       behavior: 'smooth',
@@ -26,43 +26,38 @@ export default function InstructorCarousel({
   }
 
   return (
-    <section className="py-16 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+    <section className="bg-white py-16">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mb-8 flex items-center justify-between">
           <div>
-            <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900">{title}</h2>
-            <p className="text-gray-500 mt-1">Instrutores verificados em Fortaleza - CE</p>
+            <h2 className="text-2xl font-extrabold text-gray-900 md:text-3xl">{title}</h2>
+            <p className="mt-1 text-gray-500">Instrutores parceiros</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => scroll('left')}
-              className="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center hover:bg-gray-50 hover:border-violet-300 transition-colors"
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 transition-colors hover:border-violet-300 hover:bg-gray-50"
               aria-label="Anterior"
             >
-              <ChevronLeft className="w-5 h-5 text-gray-600" />
+              <ChevronLeft className="h-5 w-5 text-gray-600" />
             </button>
             <button
               onClick={() => scroll('right')}
-              className="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center hover:bg-gray-50 hover:border-violet-300 transition-colors"
-              aria-label="Próximo"
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 transition-colors hover:border-violet-300 hover:bg-gray-50"
+              aria-label="Proximo"
             >
-              <ChevronRight className="w-5 h-5 text-gray-600" />
+              <ChevronRight className="h-5 w-5 text-gray-600" />
             </button>
           </div>
         </div>
 
-        {/* Scrollable cards */}
         <div
           ref={scrollRef}
-          className="flex gap-4 overflow-x-auto pb-4 snap-x scroll-smooth"
+          className="flex snap-x gap-4 overflow-x-auto pb-4 scroll-smooth"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {instructors.map(instructor => (
-            <div
-              key={instructor.id}
-              className="flex-none w-72 snap-start"
-            >
+          {instructors.map((instructor) => (
+            <div key={instructor.id} className="w-72 flex-none snap-start">
               <InstructorCardComponent instructor={instructor} />
             </div>
           ))}

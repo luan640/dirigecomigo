@@ -152,7 +152,7 @@ export default function StudentLessonsList({ bookings }: { bookings: UIBooking[]
               <div>
                 <h2 className="text-xl font-extrabold text-gray-900">Cancelar aula</h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  Ao confirmar, a aula sera cancelada para voce e para o instrutor, o horario ficara disponivel novamente e o suporte entrara em contato para realizar o reembolso.
+                  Ao confirmar, a aula sera cancelada para você e para o instrutor, o horário ficara disponível novamente e o suporte entrara em contato para realizar o reembolso.
                 </p>
               </div>
               <button type="button" onClick={closeModal} className="rounded-full p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700">

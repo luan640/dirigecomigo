@@ -5,33 +5,27 @@ import { useRouter } from 'next/navigation'
 import { MapPin, Search, X } from 'lucide-react'
 
 import InstructorMap from '@/components/map/InstructorMap'
-import { geocodeCepAction } from '@/lib/location'
+import { type AddressSuggestion, searchLocationSuggestionsAction } from '@/lib/location'
 import type { InstructorCard } from '@/types'
 
 interface SearchSectionProps {
   instructors: InstructorCard[]
 }
 
-type ViaCepAddress = {
-  cep: string
-  logradouro: string
-  bairro: string
-  localidade: string
-  uf: string
-}
-
 export default function SearchSection({ instructors }: SearchSectionProps) {
   const router = useRouter()
   const [query, setQuery] = useState('')
-  const [suggestions, setSuggestions] = useState<ViaCepAddress[]>([])
+  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([])
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
-  const [selectedAddress, setSelectedAddress] = useState<ViaCepAddress | null>(null)
+  const [selectedAddress, setSelectedAddress] = useState<AddressSuggestion | null>(null)
   const [selectedCoordinates, setSelectedCoordinates] = useState<{ latitude: number; longitude: number } | null>(null)
 
   useEffect(() => {
     const trimmed = query.trim()
 
-    if (selectedAddress && trimmed === selectedAddress.bairro) return
+    if (selectedAddress && trimmed === (selectedAddress.bairro || selectedAddress.logradouro || selectedAddress.localidade)) {
+      return
+    }
 
     if (trimmed.length < 3) {
       setSuggestions([])
@@ -44,29 +38,9 @@ export default function SearchSection({ instructors }: SearchSectionProps) {
 
     const timer = window.setTimeout(async () => {
       try {
-        const encodedQuery = encodeURIComponent(trimmed)
-        const urls = [
-          `https://viacep.com.br/ws/CE/Fortaleza/${encodedQuery}/json/`,
-          `https://viacep.com.br/ws/CE/Caucaia/${encodedQuery}/json/`,
-        ]
-
-        const responses = await Promise.all(urls.map(url => fetch(url, { cache: 'no-store' })))
-        const payloads = await Promise.all(
-          responses.map(async response => {
-            if (!response.ok) return []
-            const data = await response.json()
-            return Array.isArray(data) ? data : []
-          }),
-        )
-
+        const nextSuggestions = await searchLocationSuggestionsAction(trimmed)
         if (!active) return
-
-        setSuggestions(
-          payloads
-            .flat()
-            .filter((item): item is ViaCepAddress => Boolean(item?.cep && item?.bairro && item?.localidade))
-            .slice(0, 8),
-        )
+        setSuggestions(nextSuggestions)
       } catch {
         if (active) setSuggestions([])
       } finally {
@@ -93,7 +67,7 @@ export default function SearchSection({ instructors }: SearchSectionProps) {
       return
     }
 
-    if (!selectedAddress || !selectedCoordinates || query.trim() !== selectedAddress.bairro) {
+    if (!selectedAddress || !selectedCoordinates) {
       return
     }
 
@@ -108,17 +82,14 @@ export default function SearchSection({ instructors }: SearchSectionProps) {
     router.push(`/instrutores?${params.toString()}`)
   }
 
-  async function handleSelectSuggestion(address: ViaCepAddress) {
-    setQuery(address.bairro)
+  function handleSelectSuggestion(address: AddressSuggestion) {
+    setQuery(address.bairro || address.logradouro || address.localidade)
     setSuggestions([])
     setSelectedAddress(address)
-
-    try {
-      const coordinates = await geocodeCepAction(address.cep)
-      setSelectedCoordinates(coordinates)
-    } catch {
-      setSelectedCoordinates(null)
-    }
+    setSelectedCoordinates({
+      latitude: address.latitude,
+      longitude: address.longitude,
+    })
   }
 
   return (
@@ -126,10 +97,10 @@ export default function SearchSection({ instructors }: SearchSectionProps) {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-8 text-center">
           <h2 className="mb-2 text-2xl font-extrabold text-gray-900 md:text-3xl">
-            Busque o instrutor mais proximo
+            Busque o instrutor mais próximo
           </h2>
           <p className="text-gray-500">
-            Digite seu bairro ou cidade e encontre instrutores disponiveis agora
+            Digite CEP, rua ou bairro e encontre instrutores disponíveis agora
           </p>
         </div>
 
@@ -140,18 +111,18 @@ export default function SearchSection({ instructors }: SearchSectionProps) {
               <input
                 type="text"
                 value={query}
-                onChange={event => {
+                onChange={(event) => {
                   setQuery(event.target.value)
                   setSelectedAddress(null)
                   setSelectedCoordinates(null)
                 }}
-                onKeyDown={event => {
+                onKeyDown={(event) => {
                   if (event.key === 'Enter') {
                     event.preventDefault()
                     handleSearch()
                   }
                 }}
-                placeholder="Digite sua localizacao e escolha uma sugestao"
+                placeholder="Digite CEP, rua ou bairro"
                 className="w-full rounded-xl border border-gray-200 bg-white py-3.5 pl-11 pr-10 text-sm shadow-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
               />
               {query && (
@@ -167,27 +138,28 @@ export default function SearchSection({ instructors }: SearchSectionProps) {
               {(loadingSuggestions || suggestions.length > 0) && (
                 <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg">
                   {loadingSuggestions && (
-                    <div className="px-4 py-3 text-sm text-gray-500">Buscando em Fortaleza e Caucaia...</div>
+                    <div className="px-4 py-3 text-sm text-gray-500">Buscando enderecos...</div>
                   )}
 
-                  {!loadingSuggestions && suggestions.map(item => (
-                    <button
-                      key={`${item.cep}-${item.logradouro}-${item.bairro}`}
-                      type="button"
-                      onClick={() => void handleSelectSuggestion(item)}
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-violet-50"
-                    >
-                      <MapPin className="h-4 w-4 flex-shrink-0 text-gray-400" />
-                      <span>
-                        <strong>{item.logradouro || item.bairro}</strong> - {item.bairro}, {item.localidade} - CEP {item.cep}
-                      </span>
-                    </button>
-                  ))}
+                  {!loadingSuggestions &&
+                    suggestions.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => handleSelectSuggestion(item)}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-violet-50"
+                      >
+                        <MapPin className="h-4 w-4 flex-shrink-0 text-gray-400" />
+                        <span>
+                          <strong>{item.logradouro || item.bairro}</strong>
+                          {' - '}
+                          {[item.bairro, item.localidade, item.cep ? `CEP ${item.cep}` : ''].filter(Boolean).join(', ')}
+                        </span>
+                      </button>
+                    ))}
 
                   {!loadingSuggestions && suggestions.length === 0 && query.trim().length >= 3 && (
-                    <div className="px-4 py-3 text-sm text-gray-500">
-                      Nenhum endereco encontrado em Fortaleza ou Caucaia.
-                    </div>
+                    <div className="px-4 py-3 text-sm text-gray-500">Nenhum endereco encontrado.</div>
                   )}
                 </div>
               )}
@@ -202,23 +174,6 @@ export default function SearchSection({ instructors }: SearchSectionProps) {
               <Search className="h-5 w-5" />
               Buscar
             </button>
-          </div>
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            {['Aldeota', 'Meireles', 'Coco', 'Benfica', 'Messejana', 'Fatima'].map(location => (
-              <button
-                key={location}
-                type="button"
-                onClick={() => {
-                  setQuery(location)
-                  setSelectedAddress(null)
-                  setSelectedCoordinates(null)
-                }}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 transition-colors hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
-              >
-                {location}
-              </button>
-            ))}
           </div>
         </div>
 

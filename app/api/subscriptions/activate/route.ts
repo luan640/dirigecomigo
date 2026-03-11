@@ -1,19 +1,23 @@
+import { addDays, addMinutes } from 'date-fns'
 import { NextResponse } from 'next/server'
-import Stripe from 'stripe'
 
 import { PLATFORM_CONFIG } from '@/constants/pricing'
 import {
-  findLatestStripeSubscriptionByEmail,
-  isReusableStripeSubscriptionStatus,
-  syncStripeSubscriptionToDb,
-} from '@/lib/payments/stripeSubscription'
+  findLatestMercadoPagoPreapproval,
+  getMercadoPagoPlanId,
+  getMercadoPagoSubscriptionClient,
+  mapPreapprovalStatus,
+  syncPreapprovalToSubscription,
+} from '@/lib/payments/mercadoPagoSubscription'
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
-type ManagedSubscriptionLookup = {
-  provider_sub_id?: string | null
-}
 
 function resolveBaseUrl(req: Request) {
+  const configuredAppUrl = String(process.env.NEXT_PUBLIC_APP_URL || '').trim().replace(/\/$/, '')
+  if (configuredAppUrl) {
+    return configuredAppUrl
+  }
+
   const forwardedHost = req.headers.get('x-forwarded-host')
   const forwardedProto = req.headers.get('x-forwarded-proto') || 'https'
 
@@ -24,35 +28,8 @@ function resolveBaseUrl(req: Request) {
   try {
     return new URL(req.url).origin.replace(/\/$/, '')
   } catch {
-    return process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || null
+    return null
   }
-}
-
-async function resolveStripeCustomer(stripe: Stripe, args: {
-  email: string
-  instructorId: string
-}) {
-  const email = args.email.trim().toLowerCase()
-  const instructorId = args.instructorId.trim()
-
-  const customers = await stripe.customers.list({
-    email,
-    limit: 1,
-  })
-
-  const existingCustomer = customers.data.find((customer) => !customer.deleted)
-  if (existingCustomer && !existingCustomer.deleted) {
-    return existingCustomer.id
-  }
-
-  const customer = await stripe.customers.create({
-    email,
-    metadata: {
-      instructor_id: instructorId,
-    },
-  })
-
-  return customer.id
 }
 
 export async function POST(req: Request) {
@@ -70,31 +47,23 @@ export async function POST(req: Request) {
     const db = supabase as any
 
     if (DEMO_MODE) {
-      const fakeSubscription = {
-        id: `demo_sub_${Date.now()}`,
-        status: 'active',
-        metadata: {
-          instructor_id: user.id,
-          email: user.email || '',
-        },
-        current_period_start: Math.floor(Date.now() / 1000),
-        current_period_end: Math.floor((Date.now() + 30 * 24 * 60 * 60 * 1000) / 1000),
-        items: {
-          data: [
-            {
-              price: {
-                unit_amount: Math.round(PLATFORM_CONFIG.INSTRUCTOR_SUBSCRIPTION_PRICE * 100),
-              },
-            },
-          ],
+      const now = new Date()
+      const fakePreapproval = {
+        id: `demo_preapproval_${Date.now()}`,
+        status: 'authorized',
+        payer_email: user.email || '',
+        external_reference: user.id,
+        next_payment_date: addDays(now, 30).toISOString(),
+        auto_recurring: {
+          transaction_amount: PLATFORM_CONFIG.INSTRUCTOR_SUBSCRIPTION_PRICE,
+          currency_id: 'BRL',
         },
       }
 
-      const synced = await syncStripeSubscriptionToDb({
+      const synced = await syncPreapprovalToSubscription({
         db,
-        subscription: fakeSubscription as unknown as Stripe.Subscription,
+        preapproval: fakePreapproval,
         fallbackInstructorId: user.id,
-        fallbackEmail: user.email || undefined,
         fallbackAmount: PLATFORM_CONFIG.INSTRUCTOR_SUBSCRIPTION_PRICE,
       })
 
@@ -106,123 +75,86 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Usuario sem e-mail para criar assinatura.' }, { status: 400 })
     }
 
-    const secretKey = process.env.STRIPE_SECRET_KEY
-    const priceId = process.env.STRIPE_PRICE_ID
-    const appUrl = resolveBaseUrl(req)
+    if (intent === 'manage-payment-method') {
+      return NextResponse.json(
+        { error: 'O Mercado Pago nao oferece portal de gestao de cartao neste fluxo. Cancele e refaca a assinatura.' },
+        { status: 400 },
+      )
+    }
 
-    if (!secretKey) {
-      return NextResponse.json({ error: 'STRIPE_SECRET_KEY nao configurado.' }, { status: 500 })
-    }
-    if (!priceId) {
-      return NextResponse.json({ error: 'STRIPE_PRICE_ID nao configurado.' }, { status: 500 })
-    }
+    const appUrl = resolveBaseUrl(req)
     if (!appUrl) {
       return NextResponse.json({ error: 'NEXT_PUBLIC_APP_URL nao configurado.' }, { status: 500 })
     }
 
-    const stripe = new Stripe(secretKey)
-    const baseUrl = appUrl.replace(/\/$/, '')
-
-    if (intent === 'manage-payment-method') {
-      const { data: subscription, error } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('instructor_id', user.id)
-        .eq('provider', 'stripe')
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle() as { data: ManagedSubscriptionLookup | null; error: Error | null }
-
-      if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-      if (!subscription?.provider_sub_id) {
-        return NextResponse.json({ error: 'Nenhuma assinatura Stripe encontrada para gerenciar.' }, { status: 400 })
-      }
-
-      const stripeSubscription = await stripe.subscriptions.retrieve(String(subscription.provider_sub_id))
-      const customerId = typeof stripeSubscription.customer === 'string'
-        ? stripeSubscription.customer
-        : stripeSubscription.customer?.id
-
-      if (!customerId) {
-        return NextResponse.json({ error: 'Nao foi possivel identificar o cliente no Stripe.' }, { status: 400 })
-      }
-
-      const portalSession = await stripe.billingPortal.sessions.create({
-        customer: customerId,
-        return_url: `${baseUrl}/painel/assinatura?portal=returned`,
-      })
-
-      return NextResponse.json({
-        data: null,
-        redirect_url: portalSession.url,
-        error: null,
-      })
-    }
-
-    const lineItem = priceId.startsWith('price_')
-      ? {
-          price: priceId,
-          quantity: 1,
-        }
-      : {
-          price_data: {
-            currency: 'brl',
-            unit_amount: Math.round(PLATFORM_CONFIG.INSTRUCTOR_SUBSCRIPTION_PRICE * 100),
-            recurring: { interval: 'month' as const },
-            product_data: {
-              name: 'Direcao Facil Pro',
-              description: 'Assinatura mensal recorrente para instrutores',
-            },
-          },
-          quantity: 1,
-        }
-
-    const customerId = await resolveStripeCustomer(stripe, {
-      email: user.email,
-      instructorId: user.id,
+    const currentSubscription = await findLatestMercadoPagoPreapproval({
+      payerEmail: user.email,
+      externalReference: user.id,
     })
 
-    const existingSubscription = await findLatestStripeSubscriptionByEmail(stripe, user.email)
-    if (existingSubscription && isReusableStripeSubscriptionStatus(existingSubscription.status)) {
-      const synced = await syncStripeSubscriptionToDb({
-        db,
-        subscription: existingSubscription,
-        fallbackInstructorId: user.id,
-        fallbackEmail: user.email,
-        fallbackAmount: PLATFORM_CONFIG.INSTRUCTOR_SUBSCRIPTION_PRICE,
-      })
+    if (currentSubscription) {
+      const remoteStatus = mapPreapprovalStatus(currentSubscription.status)
+      if (remoteStatus === 'active') {
+        const synced = await syncPreapprovalToSubscription({
+          db,
+          preapproval: currentSubscription as unknown as Record<string, unknown>,
+          fallbackInstructorId: user.id,
+          fallbackAmount: PLATFORM_CONFIG.INSTRUCTOR_SUBSCRIPTION_PRICE,
+        })
 
-      if (synced.error) {
-        return NextResponse.json({ error: synced.error }, { status: 400 })
+        if (synced.error) return NextResponse.json({ error: synced.error }, { status: 400 })
+        return NextResponse.json({ data: synced.data, error: null })
       }
 
-      return NextResponse.json({ data: synced.data, error: null })
+      const pendingInitPoint = String(currentSubscription.init_point || '').trim()
+      if (remoteStatus === 'pending' && pendingInitPoint) {
+        return NextResponse.json({
+          data: null,
+          redirect_url: pendingInitPoint,
+          preapproval_id: currentSubscription.id || null,
+          error: null,
+        })
+      }
     }
 
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      success_url: `${baseUrl}/painel/assinatura?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/painel/assinatura?checkout=cancelled`,
-      client_reference_id: user.id,
-      customer: customerId,
-      metadata: {
-        instructor_id: user.id,
-        email: user.email,
-      },
-      subscription_data: {
-        metadata: {
-          instructor_id: user.id,
-          email: user.email,
-        },
-      },
-      line_items: [lineItem],
-      allow_promotion_codes: true,
+    const client = getMercadoPagoSubscriptionClient()
+    const backUrl = new URL('/painel/assinatura?checkout=success', `${appUrl.replace(/\/$/, '')}/`).toString()
+    const planId = getMercadoPagoPlanId()
+    const reason = 'MeuInstrutor Pro'
+
+    const payload = planId
+      ? {
+          preapproval_plan_id: planId,
+          payer_email: user.email,
+          external_reference: user.id,
+          back_url: backUrl,
+          reason,
+          status: 'pending',
+        }
+      : {
+          payer_email: user.email,
+          external_reference: user.id,
+          back_url: backUrl,
+          reason,
+          status: 'pending',
+          auto_recurring: {
+            frequency: 1,
+            frequency_type: 'months',
+            transaction_amount: PLATFORM_CONFIG.INSTRUCTOR_SUBSCRIPTION_PRICE,
+            currency_id: 'BRL',
+            start_date: addMinutes(new Date(), 10).toISOString(),
+          },
+        }
+
+    const preapproval = await client.create({
+      body: payload,
     })
 
     return NextResponse.json({
       data: null,
-      redirect_url: session.url,
-      error: null,
+      redirect_url: preapproval.init_point || null,
+      preapproval_id: preapproval.id || null,
+      error: preapproval.init_point ? null : 'Mercado Pago nao retornou URL de autorizacao.',
     })
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message || 'Erro ao ativar assinatura.' }, { status: 500 })

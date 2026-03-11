@@ -1,18 +1,10 @@
 import { NextResponse } from 'next/server'
-import Stripe from 'stripe'
 
-import { syncStripeSubscriptionToDb } from '@/lib/payments/stripeSubscription'
-
-async function resolveCustomerEmail(stripe: Stripe, customerId: string | Stripe.Customer | Stripe.DeletedCustomer | null) {
-  if (!customerId) return null
-  if (typeof customerId !== 'string') {
-    return 'email' in customerId ? String(customerId.email || '').trim() || null : null
-  }
-
-  const customer = await stripe.customers.retrieve(customerId)
-  if (customer.deleted) return null
-  return String(customer.email || '').trim() || null
-}
+import {
+  findLatestMercadoPagoPreapproval,
+  getMercadoPagoSubscriptionClient,
+  syncPreapprovalToSubscription,
+} from '@/lib/payments/mercadoPagoSubscription'
 
 export async function GET(req: Request) {
   try {
@@ -22,40 +14,28 @@ export async function GET(req: Request) {
     const user = authData.user
     if (!user) return NextResponse.json({ error: 'Nao autenticado.' }, { status: 401 })
 
-    const secretKey = process.env.STRIPE_SECRET_KEY
-    if (!secretKey) {
-      return NextResponse.json({ error: 'STRIPE_SECRET_KEY nao configurado.' }, { status: 500 })
+    const preapprovalId = new URL(req.url).searchParams.get('preapproval_id')
+
+    let preapproval: Record<string, unknown> | null = null
+    if (preapprovalId) {
+      const client = getMercadoPagoSubscriptionClient()
+      preapproval = (await client.get({ id: preapprovalId })) as unknown as Record<string, unknown>
+    } else if (user.email) {
+      preapproval = (await findLatestMercadoPagoPreapproval({
+        payerEmail: user.email,
+        externalReference: user.id,
+      })) as unknown as Record<string, unknown> | null
     }
 
-    const sessionId = new URL(req.url).searchParams.get('session_id')
-    if (!sessionId) {
-      return NextResponse.json({ error: 'session_id obrigatorio.' }, { status: 400 })
+    if (!preapproval) {
+      return NextResponse.json({ data: null, error: null })
     }
 
-    const stripe = new Stripe(secretKey)
-    const session = await stripe.checkout.sessions.retrieve(sessionId)
-    if (session.mode !== 'subscription' || !session.subscription) {
-      return NextResponse.json({ error: 'Sessao Stripe sem assinatura vinculada.' }, { status: 400 })
-    }
-
-    const subscription = typeof session.subscription === 'string'
-      ? await stripe.subscriptions.retrieve(session.subscription)
-      : session.subscription
-
-    const customerEmail = String(
-      session.customer_details?.email ||
-      session.customer_email ||
-      await resolveCustomerEmail(stripe, session.customer) ||
-      user.email ||
-      '',
-    ).trim() || undefined
-    const fallbackInstructorId = String(session.client_reference_id || session.metadata?.instructor_id || user.id).trim() || user.id
-
-    const synced = await syncStripeSubscriptionToDb({
+    const synced = await syncPreapprovalToSubscription({
       db: supabase,
-      subscription,
-      fallbackInstructorId,
-      fallbackEmail: customerEmail,
+      preapproval,
+      fallbackInstructorId: user.id,
+      fallbackAmount: 15,
     })
 
     if (synced.error) {

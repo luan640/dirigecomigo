@@ -4,7 +4,7 @@ import BrandLogo from '@/components/layout/BrandLogo'
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 px-4 py-12">
+    <div className="flex min-h-screen items-center justify-center bg-[linear-gradient(160deg,#03122f_0%,#041f4b_52%,#0b3163_100%)] px-4 py-12">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center">
@@ -12,10 +12,12 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </Link>
         </div>
 
-        <div className="rounded-3xl bg-white p-8 shadow-2xl">{children}</div>
+        <div className="rounded-3xl bg-white p-8 shadow-[0_24px_70px_rgba(2,12,36,0.45)]">
+          {children}
+        </div>
 
-        <p className="mt-6 text-center text-sm text-blue-300">
-          Copyright {new Date().getFullYear()} Direcao Facil - Fortaleza, CE
+        <p className="mt-6 text-center text-sm text-[#d6e2f3]">
+          Copyright {new Date().getFullYear()} DirecaoFacil - Fortaleza e região metropolitana.
         </p>
       </div>
     </div>

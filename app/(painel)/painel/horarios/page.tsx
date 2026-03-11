@@ -151,7 +151,7 @@ export default function HorariosPage() {
     for (const day of settingsDraft.days) {
       if (!day.enabled) continue
       if (toMinutes(day.start) >= toMinutes(day.end)) {
-        toast.error(`No ${day.label}, o horario inicial deve ser anterior ao final.`)
+        toast.error(`No ${day.label}, o horário inicial deve ser anterior ao final.`)
         return
       }
 
@@ -210,7 +210,7 @@ export default function HorariosPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-extrabold text-gray-900">Gerenciar horarios</h1>
+        <h1 className="text-2xl font-extrabold text-gray-900">Gerenciar horários</h1>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setShowSettings(true)}

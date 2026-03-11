@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server'
-import Stripe from 'stripe'
 
-import { findLatestStripeSubscriptionByEmail, syncStripeSubscriptionToDb } from '@/lib/payments/stripeSubscription'
+import {
+  findLatestMercadoPagoPreapproval,
+  getMercadoPagoSubscriptionClient,
+  syncPreapprovalToSubscription,
+} from '@/lib/payments/mercadoPagoSubscription'
 
 type SubscriptionStatusRow = {
+  amount?: number | null
   provider?: string | null
   provider_sub_id?: string | null
-  amount?: number | null
   status?: string | null
 }
 
@@ -20,29 +23,23 @@ export async function GET() {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase as any
-    const { data, error } = await db
+    const { data, error } = (await db
       .from('subscriptions')
       .select('*')
       .eq('instructor_id', user.id)
       .order('updated_at', { ascending: false })
       .limit(1)
-      .maybeSingle() as { data: SubscriptionStatusRow | null; error: Error | null }
+      .maybeSingle()) as { data: SubscriptionStatusRow | null; error: Error | null }
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
-    if (data?.provider && data.provider !== 'stripe') {
-      return NextResponse.json({ error: 'Este endpoint suporta apenas assinaturas Stripe.' }, { status: 400 })
-    }
-
-    const stripeSecretKey = process.env.STRIPE_SECRET_KEY
-    if (data?.provider === 'stripe' && data?.provider_sub_id && stripeSecretKey) {
-      try {
-        const stripe = new Stripe(stripeSecretKey)
-        const subscription = await stripe.subscriptions.retrieve(String(data.provider_sub_id))
-
-        const synced = await syncStripeSubscriptionToDb({
+    try {
+      if (data?.provider_sub_id) {
+        const client = getMercadoPagoSubscriptionClient()
+        const remote = await client.get({ id: String(data.provider_sub_id) })
+        const synced = await syncPreapprovalToSubscription({
           db,
-          subscription,
+          preapproval: remote as unknown as Record<string, unknown>,
           fallbackInstructorId: user.id,
           fallbackAmount: Number(data.amount || 15),
         })
@@ -50,22 +47,19 @@ export async function GET() {
         if (!synced.error) {
           return NextResponse.json({ data: synced.data || data, error: null })
         }
-      } catch {
-        // Keep local status if Stripe request fails.
       }
-    }
 
-    if (stripeSecretKey && user.email && (!data || data.status === 'cancelled' || data.status === 'expired')) {
-      try {
-        const stripe = new Stripe(stripeSecretKey)
-        const subscription = await findLatestStripeSubscriptionByEmail(stripe, user.email)
+      if (user.email && (!data || data.status === 'cancelled' || data.status === 'expired')) {
+        const remote = await findLatestMercadoPagoPreapproval({
+          payerEmail: user.email,
+          externalReference: user.id,
+        })
 
-        if (subscription) {
-          const synced = await syncStripeSubscriptionToDb({
+        if (remote) {
+          const synced = await syncPreapprovalToSubscription({
             db,
-            subscription,
+            preapproval: remote as unknown as Record<string, unknown>,
             fallbackInstructorId: user.id,
-            fallbackEmail: user.email,
             fallbackAmount: Number(data?.amount || 15),
           })
 
@@ -73,9 +67,9 @@ export async function GET() {
             return NextResponse.json({ data: synced.data || data, error: null })
           }
         }
-      } catch {
-        // Keep local status if Stripe recovery fails.
       }
+    } catch {
+      // Preserve local state if Mercado Pago is unavailable.
     }
 
     return NextResponse.json({ data: data || null, error: null })

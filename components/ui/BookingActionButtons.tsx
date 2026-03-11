@@ -93,13 +93,13 @@ export default function BookingActionButtons({ booking }: BookingActionButtonsPr
   const handleReschedule = async () => {
     if (!selectedBooking) return
     if (!selectedSlotId) {
-      toast.error('Escolha um novo horario.')
+      toast.error('Escolha um novo horário.')
       return
     }
 
     const selectedSlot = slots.find((slot) => slot.id === selectedSlotId)
     if (!selectedSlot) {
-      toast.error('O horario selecionado nao foi encontrado.')
+      toast.error('O horário selecionado não foi encontrado.')
       return
     }
 

@@ -32,7 +32,7 @@ export async function POST(req: Request) {
 
     const body = await req.json()
     const amount = Number(body?.amount)
-    const description = String(body?.description || 'Pagamento Direcao Facil')
+    const description = String(body?.description || 'Pagamento DirecaoFacil')
     const customerEmail = String(body?.customerEmail || '')
     const metadata = body?.metadata && typeof body.metadata === 'object' ? body.metadata : {}
 

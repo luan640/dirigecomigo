@@ -1,4 +1,5 @@
 import { addMonths, format } from 'date-fns'
+import { MercadoPagoConfig, PreApproval } from 'mercadopago'
 
 type DbClient = {
   from: (table: string) => {
@@ -31,20 +32,72 @@ function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 }
 
-export function mapPreapprovalStatus(status?: string): 'active' | 'trial' | 'cancelled' | 'expired' {
+export function mapPreapprovalStatus(status?: string): 'active' | 'pending' | 'cancelled' | 'expired' {
   switch (String(status || '').toLowerCase()) {
     case 'authorized':
       return 'active'
     case 'paused':
     case 'pending':
-      return 'trial'
+      return 'pending'
     case 'cancelled':
       return 'cancelled'
     case 'expired':
       return 'expired'
     default:
-      return 'trial'
+      return 'pending'
   }
+}
+
+export function getMercadoPagoSubscriptionClient() {
+  const accessToken =
+    String(process.env.MERCADOPAGO_ACCESS_TOKEN_ASSINATURA || '').trim() ||
+    String(process.env.MERCADOPAGO_ACCESS_TOKEN || '').trim()
+  if (!accessToken) {
+    throw new Error('MERCADOPAGO_ACCESS_TOKEN_ASSINATURA nao configurado.')
+  }
+
+  return new PreApproval(new MercadoPagoConfig({ accessToken }))
+}
+
+export function getMercadoPagoPlanId() {
+  return (
+    String(process.env.MERCADOPAGO_PREAPPROVAL_PLAN_ID || '').trim() ||
+    String(process.env.MERCADOPAGO_SUBSCRIPTION_PLAN_ID || '').trim() ||
+    String(process.env.MP_PREAPPROVAL_PLAN_ID || '').trim()
+  )
+}
+
+export async function findLatestMercadoPagoPreapproval(args: {
+  payerEmail?: string
+  externalReference?: string
+}) {
+  const client = getMercadoPagoSubscriptionClient()
+  const payerEmail = String(args.payerEmail || '').trim()
+  const externalReference = String(args.externalReference || '').trim()
+
+  if (!payerEmail && !externalReference) return null
+
+  const search = await client.search({
+    options: {
+      payer_email: payerEmail || undefined,
+      q: externalReference || undefined,
+    },
+  })
+
+  const results = Array.isArray(search.results) ? search.results : []
+  const filtered = results.filter((item) => {
+    const itemRef = String(item.external_reference || '').trim()
+    if (externalReference && itemRef !== externalReference) return false
+    return true
+  })
+
+  const sorted = [...filtered].sort(
+    (a, b) => Number(b.last_modified || b.date_created || 0) - Number(a.last_modified || a.date_created || 0),
+  )
+  const latestId = String(sorted[0]?.id || '').trim()
+  if (!latestId) return null
+
+  return client.get({ id: latestId })
 }
 
 export async function ensureInstructorRow(db: DbClient, instructorId: string) {

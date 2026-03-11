@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
-import Stripe from 'stripe'
 import {
   BarChart2,
   CalendarDays,
@@ -13,7 +12,7 @@ import {
 } from 'lucide-react'
 
 import Navbar from '@/components/layout/Navbar'
-import { findLatestStripeSubscriptionByEmail, syncStripeSubscriptionToDb } from '@/lib/payments/stripeSubscription'
+import { findLatestMercadoPagoPreapproval, syncPreapprovalToSubscription } from '@/lib/payments/mercadoPagoSubscription'
 
 const navItems = [
   { href: '/painel/dashboard', label: 'Início', icon: LayoutDashboard },
@@ -53,18 +52,18 @@ async function hasActiveSubscription() {
       return String(endDateRaw).slice(0, 10) >= today
     }
 
-    const stripeSecretKey = process.env.STRIPE_SECRET_KEY
-    if (!stripeSecretKey || !user.email) return false
+    if (!user.email) return false
 
-    const stripe = new Stripe(stripeSecretKey)
-    const remoteSubscription = await findLatestStripeSubscriptionByEmail(stripe, user.email)
+    const remoteSubscription = await findLatestMercadoPagoPreapproval({
+      payerEmail: user.email,
+      externalReference: user.id,
+    })
     if (!remoteSubscription) return false
 
-    const synced = await syncStripeSubscriptionToDb({
+    const synced = await syncPreapprovalToSubscription({
       db: supabase,
-      subscription: remoteSubscription,
+      preapproval: remoteSubscription as unknown as Record<string, unknown>,
       fallbackInstructorId: user.id,
-      fallbackEmail: user.email,
       fallbackAmount: Number(sub?.amount || 15),
     })
     const nextSub = synced.error ? sub : synced.data

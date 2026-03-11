@@ -29,13 +29,21 @@ export default function Navbar() {
     )
 
     const loadUser = async () => {
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      if (!authUser) { setUser(null); return }
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser()
+
+      if (!authUser) {
+        setUser(null)
+        return
+      }
+
       const { data: profile } = await supabase
         .from('profiles')
         .select('full_name, role')
         .eq('id', authUser.id)
         .single()
+
       if (profile) {
         setUser({ name: profile.full_name, role: profile.role as 'student' | 'instructor' })
       }
@@ -43,7 +51,9 @@ export default function Navbar() {
 
     loadUser()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
       loadUser()
     })
 
@@ -55,6 +65,7 @@ export default function Navbar() {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
+
     await supabase.auth.signOut()
     setUser(null)
     setUserMenuOpen(false)
@@ -65,59 +76,56 @@ export default function Navbar() {
   const dashboardHref = user?.role === 'instructor' ? '/painel/dashboard' : '/aluno/dashboard'
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-gray-100/80 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
+    <header className="sticky top-0 z-50 w-full border-b border-[#d9e5f1] bg-white/92 shadow-[0_10px_30px_rgba(3,31,74,0.06)] backdrop-blur-md">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between">
           <Link href="/" className="flex items-center">
             <BrandLogo className="h-10 w-auto" priority />
           </Link>
 
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden items-center gap-6 md:flex">
             <Link
               href="/instrutores"
-              className="text-sm font-medium text-gray-600 hover:text-violet-600 transition-colors"
+              className="text-sm font-medium text-gray-600 transition-colors hover:text-[var(--brand-orange)]"
             >
               Buscar instrutor
             </Link>
             <Link
               href="/#como-funciona"
-              className="text-sm font-medium text-gray-600 hover:text-violet-600 transition-colors"
+              className="text-sm font-medium text-gray-600 transition-colors hover:text-[var(--brand-orange)]"
             >
               Como funciona
             </Link>
             <Link
               href="/#seja-instrutor"
-              className="text-sm font-medium text-gray-600 hover:text-violet-600 transition-colors"
+              className="text-sm font-medium text-gray-600 transition-colors hover:text-[var(--brand-orange)]"
             >
               Seja instrutor
             </Link>
           </nav>
 
-          {/* Desktop auth */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden items-center gap-3 md:flex">
             {user ? (
               <div className="relative">
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-[#f4f8fc]"
                 >
-                  <div className="w-8 h-8 bg-violet-100 rounded-full flex items-center justify-center text-violet-700 font-semibold text-sm">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#fff5cc] text-sm font-semibold text-[var(--brand-navy)]">
                     {user.name.charAt(0).toUpperCase()}
                   </div>
                   <span className="text-sm font-medium text-gray-700">{user.name.split(' ')[0]}</span>
-                  <ChevronDown className="w-4 h-4 text-gray-400" />
+                  <ChevronDown className="h-4 w-4 text-gray-400" />
                 </button>
 
                 {userMenuOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
+                  <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-xl border border-gray-100 bg-white py-1 shadow-lg">
                     <Link
                       href={dashboardHref}
                       className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
                       onClick={() => setUserMenuOpen(false)}
                     >
-                      <LayoutDashboard className="w-4 h-4" />
+                      <LayoutDashboard className="h-4 w-4" />
                       Meu painel
                     </Link>
                     <Link
@@ -125,15 +133,15 @@ export default function Navbar() {
                       className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
                       onClick={() => setUserMenuOpen(false)}
                     >
-                      <User className="w-4 h-4" />
+                      <User className="h-4 w-4" />
                       Perfil
                     </Link>
                     <hr className="my-1 border-gray-100" />
                     <button
                       onClick={handleSignOut}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                      className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
                     >
-                      <LogIn className="w-4 h-4" />
+                      <LogIn className="h-4 w-4" />
                       Sair
                     </button>
                   </div>
@@ -143,13 +151,13 @@ export default function Navbar() {
               <>
                 <Link
                   href="/entrar"
-                  className="text-sm font-medium text-gray-700 hover:text-violet-600 transition-colors px-4 py-2"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:text-[var(--brand-orange)]"
                 >
                   Entrar
                 </Link>
                 <Link
                   href="/cadastro"
-                  className="text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 px-4 py-2 rounded-lg transition-colors"
+                  className="rounded-lg bg-[var(--brand-orange)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#e45f00]"
                 >
                   Criar conta
                 </Link>
@@ -157,38 +165,36 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Mobile hamburger */}
           <button
-            className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="rounded-lg p-2 transition-colors hover:bg-gray-100 md:hidden"
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label="Menu"
           >
-            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
       </div>
 
-      {/* Mobile menu */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-gray-100 bg-white">
-          <nav className="px-4 py-3 flex flex-col gap-1">
+        <div className="border-t border-gray-100 bg-white md:hidden">
+          <nav className="flex flex-col gap-1 px-4 py-3">
             <Link
               href="/instrutores"
-              className="px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg"
+              className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-[#f4f8fc]"
               onClick={() => setMobileOpen(false)}
             >
               Buscar instrutor
             </Link>
             <Link
               href="/#como-funciona"
-              className="px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg"
+              className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-[#f4f8fc]"
               onClick={() => setMobileOpen(false)}
             >
               Como funciona
             </Link>
             <Link
               href="/#seja-instrutor"
-              className="px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg"
+              className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-[#f4f8fc]"
               onClick={() => setMobileOpen(false)}
             >
               Seja instrutor
@@ -197,12 +203,12 @@ export default function Navbar() {
             {user ? (
               <>
                 <div className="px-3 py-2">
-                  <div className="flex items-center gap-3 rounded-lg bg-gray-50 px-3 py-2.5">
-                    <div className="w-9 h-9 bg-violet-100 rounded-full flex items-center justify-center text-violet-700 font-semibold text-sm">
+                  <div className="flex items-center gap-3 rounded-lg bg-[#f4f8fc] px-3 py-2.5">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#fff5cc] text-sm font-semibold text-[var(--brand-navy)]">
                       {user.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
+                      <p className="truncate text-sm font-semibold text-gray-900">{user.name}</p>
                       <p className="text-xs text-gray-500">
                         {user.role === 'instructor' ? 'Instrutor' : 'Aluno'}
                       </p>
@@ -211,23 +217,23 @@ export default function Navbar() {
                 </div>
                 <Link
                   href={dashboardHref}
-                  className="px-3 py-2.5 text-sm font-medium text-violet-600 hover:bg-violet-50 rounded-lg"
+                  className="rounded-lg px-3 py-2.5 text-sm font-medium text-[var(--brand-orange)] hover:bg-[#fff3ea]"
                   onClick={() => setMobileOpen(false)}
                 >
                   Meu painel
                 </Link>
                 <Link
                   href="/perfil"
-                  className="px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg"
+                  className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
                   onClick={() => setMobileOpen(false)}
                 >
                   Perfil
                 </Link>
                 <button
                   onClick={handleSignOut}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50"
                 >
-                  <LogIn className="w-4 h-4" />
+                  <LogIn className="h-4 w-4" />
                   Sair
                 </button>
               </>
@@ -235,14 +241,14 @@ export default function Navbar() {
               <div className="flex flex-col gap-2 pt-1">
                 <Link
                   href="/entrar"
-                  className="w-full text-center px-4 py-2.5 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50"
+                  className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-center text-sm font-medium hover:bg-[#f4f8fc]"
                   onClick={() => setMobileOpen(false)}
                 >
                   Entrar
                 </Link>
                 <Link
                   href="/cadastro"
-                  className="w-full text-center px-4 py-2.5 text-sm font-semibold text-white bg-violet-600 rounded-lg hover:bg-violet-700"
+                  className="w-full rounded-lg bg-[var(--brand-orange)] px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-[#e45f00]"
                   onClick={() => setMobileOpen(false)}
                 >
                   Criar conta

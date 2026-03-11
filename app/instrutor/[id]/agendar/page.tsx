@@ -279,7 +279,7 @@ function CheckoutContent() {
   }, [])
 
   const createBookingAfterPayment = useCallback(async (paymentIntent: PaymentIntent) => {
-    if (!dateStr || !timeStr) throw new Error('Data/horario invalidos para criar agendamento.')
+    if (!dateStr || !timeStr) throw new Error('Data/horário inválidos para criar agendamento.')
 
     const { createClient } = await import('@/lib/supabase/client')
     const supabase = createClient()
