@@ -2,8 +2,8 @@ alter table profiles
   add column if not exists onboarding_completed boolean not null default false;
 
 alter table instructors
-  add column if not exists price_per_lesson_a numeric(10,2) check (price_per_lesson_a is null or price_per_lesson_a >= 50),
-  add column if not exists price_per_lesson_b numeric(10,2) check (price_per_lesson_b is null or price_per_lesson_b >= 50);
+  add column if not exists price_per_lesson_a numeric(10,2) check (price_per_lesson_a is null or price_per_lesson_a >= 1),
+  add column if not exists price_per_lesson_b numeric(10,2) check (price_per_lesson_b is null or price_per_lesson_b >= 1);
 
 update instructors
 set categories = case

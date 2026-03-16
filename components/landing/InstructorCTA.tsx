@@ -5,11 +5,11 @@ import { formatCurrency } from '@/utils/format'
 
 export default function InstructorCTA() {
   const benefits = [
-    'Apareca para centenas de alunos em busca de instrutor',
+    'Apareça para centenas de alunos em busca de instrutor',
     'Gerencie sua agenda de forma simples e intuitiva',
-    'Receba pagamentos com seguranca direto no app',
-    'Historico completo de aulas e faturamento',
-    'Perfil publico com avaliacoes verificadas',
+    'Receba pagamentos com segurança direto no app',
+    'Histórico completo de aulas e faturamento',
+    'Perfil público com avaliações verificadas',
     'Suporte dedicado para instrutores parceiros',
   ]
 
@@ -44,7 +44,7 @@ export default function InstructorCTA() {
               Cadastre-se como instrutor parceiro e conecte-se com alunos prontos para aprender a
               dirigir em Fortaleza. Por apenas{' '}
               <strong className="text-white">
-                {formatCurrency(PLATFORM_CONFIG.INSTRUCTOR_SUBSCRIPTION_PRICE)}/mes
+                {formatCurrency(PLATFORM_CONFIG.INSTRUCTOR_SUBSCRIPTION_PRICE)}/mês
               </strong>
               , tenha acesso completo a plataforma.
             </p>
@@ -75,13 +75,13 @@ export default function InstructorCTA() {
                 <p className="mb-2 text-sm font-medium text-gray-500">Assinatura mensal</p>
                 <div className="flex items-end justify-center gap-1">
                   <span className="text-5xl font-black text-[var(--brand-orange)]">R$15</span>
-                  <span className="mb-1.5 text-gray-400">/mes</span>
+                  <span className="mb-1.5 text-gray-400">/mês</span>
                 </div>
                 <p className="mt-2 text-xs text-gray-400">Cancele quando quiser</p>
               </div>
 
               <div className="mb-6 rounded-2xl bg-[#fff7db] p-4">
-                <p className="mb-2 text-sm font-bold text-[var(--brand-navy)]">Simulacao por aula</p>
+                <p className="mb-2 text-sm font-bold text-[var(--brand-navy)]">Simulação por aula</p>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">Valor da aula</span>
                   <span className="font-semibold">R$100</span>
@@ -91,21 +91,26 @@ export default function InstructorCTA() {
                   <span className="font-semibold text-red-500">- R$8</span>
                 </div>
                 <div className="mt-2.5 flex items-center justify-between border-t border-[#f3df8b] pt-2.5">
-                  <span className="text-sm font-bold text-gray-900">Voce recebe</span>
-                  <span className="text-lg font-black text-[var(--brand-green)]">R$92</span>
+                  <span className="text-sm font-bold text-gray-900">Valor cobrado</span>
+                  <span className="text-lg font-black text-[var(--brand-green)]">R$108</span>
                 </div>
+                <div className="mt-2.5 flex items-center justify-between border-t border-[#f3df8b] pt-2.5">
+                  <span className="text-sm font-bold text-gray-900">Você recebe</span>
+                  <span className="text-lg font-black text-[var(--brand-green)]">R$100</span>
+                </div>
+
               </div>
 
               <Link
                 href="/cadastro?role=instructor"
                 className="block w-full rounded-xl bg-[var(--brand-orange)] px-4 py-3.5 text-center font-bold text-white transition-colors hover:bg-[#e45f00]"
               >
-                Comecar agora
+                Começar agora
               </Link>
 
-              <p className="mt-3 text-center text-xs text-gray-400">
-                Sem taxa de cadastro · 7 dias gratis para testar
-              </p>
+              {/* <p className="mt-3 text-center text-xs text-gray-400">
+                Sem taxa de cadastro · 7 dias grátis para testar
+              </p> */}
             </div>
           </div>
         </div>

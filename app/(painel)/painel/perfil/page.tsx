@@ -22,19 +22,19 @@ const schema = z.object({
   min_advance_booking_hours: z.coerce.number().int().min(0, 'Minimo 0h').max(168, 'Maximo 168h'),
   cancellation_notice_hours: z.coerce.number().int().min(1, 'Minimo 1h').max(720, 'Maximo 720h'),
 }).superRefine((values, ctx) => {
-  if ((values.service_mode === 'car' || values.service_mode === 'both') && (!values.price_car || values.price_car < 50)) {
+  if ((values.service_mode === 'car' || values.service_mode === 'both') && (!values.price_car || values.price_car < 1)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['price_car'],
-      message: 'Informe um valor de no minimo R$50 para carro',
+      message: 'Informe um valor de no minimo R$1 para carro',
     })
   }
 
-  if ((values.service_mode === 'moto' || values.service_mode === 'both') && (!values.price_moto || values.price_moto < 50)) {
+  if ((values.service_mode === 'moto' || values.service_mode === 'both') && (!values.price_moto || values.price_moto < 1)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['price_moto'],
-      message: 'Informe um valor de no minimo R$50 para moto',
+      message: 'Informe um valor de no minimo R$1 para moto',
     })
   }
 })
@@ -230,7 +230,7 @@ export default function PainelPerfilPage() {
           : 'B'
 
       const selectedPrices = [values.price_car, values.price_moto].filter(
-        (item): item is number => typeof item === 'number' && item >= 50,
+        (item): item is number => typeof item === 'number' && item >= 1,
       )
 
       const instructorPayload: Record<string, unknown> = {
@@ -518,13 +518,13 @@ export default function PainelPerfilPage() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {(serviceMode === 'car' || serviceMode === 'both') && (
               <Field label="Quanto você quer receber por aula de carro? (R$)" error={errors.price_car?.message}>
-                <input {...register('price_car')} type="number" min={50} className={inp} />
+                <input {...register('price_car')} type="number" min={1} className={inp} />
               </Field>
             )}
 
             {(serviceMode === 'moto' || serviceMode === 'both') && (
               <Field label="Quanto você quer receber por aula de moto? (R$)" error={errors.price_moto?.message}>
-                <input {...register('price_moto')} type="number" min={50} className={inp} />
+                <input {...register('price_moto')} type="number" min={1} className={inp} />
               </Field>
             )}
           </div>
@@ -579,4 +579,3 @@ function Field({ label, error, children }: { label: string; error?: string; chil
     </div>
   )
 }
-

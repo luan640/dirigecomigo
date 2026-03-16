@@ -182,7 +182,7 @@ export default function MercadoPagoCardBrick({
       {!brickReady && !brickError && (
         <div className="mb-4 flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Carregando formulario seguro do Mercado Pago...
+          Conectando com Mercado Pago...
         </div>
       )}
 

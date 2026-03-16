@@ -145,7 +145,7 @@ function EntrarContent() {
           const hasInstructorSetup = Boolean(
             instructor &&
               String(instructor.category || '').trim() &&
-              Number(instructor.price_per_lesson || 0) >= 50
+              Number(instructor.price_per_lesson || 0) >= 1
           )
 
           if (hasInstructorSetup) {

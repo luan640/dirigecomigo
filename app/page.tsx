@@ -3,36 +3,37 @@ import Footer from '@/components/layout/Footer'
 import HeroSection from '@/components/landing/HeroSection'
 import InstructorCarousel from '@/components/landing/InstructorCarousel'
 import SearchSection from '@/components/landing/SearchSection'
+import BenefitsSection from '@/components/landing/BenefitsSection'
 import HowItWorks from '@/components/landing/HowItWorks'
 import InstructorCTA from '@/components/landing/InstructorCTA'
-import { MOCK_INSTRUCTORS } from '@/lib/mock-data'
-import { loadPublicInstructors } from '@/lib/publicInstructors'
-import type { InstructorCard } from '@/types'
+import FinalCTA from '@/components/landing/FinalCTA'
 import AuthCodeHandler from './AuthCodeHandler'
+import { loadPublicInstructors } from '@/lib/publicInstructors'
+import { MOCK_INSTRUCTORS } from '@/lib/mock-data'
+import type { InstructorCard } from '@/types'
 
 async function loadHomeInstructors(): Promise<InstructorCard[]> {
-  const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
-  if (DEMO_MODE) return MOCK_INSTRUCTORS
+  const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
+  if (demoMode) return MOCK_INSTRUCTORS
   return loadPublicInstructors()
 }
 
 export default async function HomePage() {
   const instructors = await loadHomeInstructors()
-  const availableTodayInstructors = instructors.filter((instructor) => instructor.available_today).slice(0, 8)
+  const list = instructors.length ? instructors : MOCK_INSTRUCTORS
 
   return (
     <>
       <AuthCodeHandler />
       <Navbar />
-      <main>
+      <main className="overflow-hidden bg-white">
         <HeroSection />
-        <InstructorCarousel
-          instructors={availableTodayInstructors}
-          title="Instrutores disponíveis agora"
-        />
+        <InstructorCarousel instructors={list} />
+        <SearchSection instructors={list} />
+        <BenefitsSection />
         <HowItWorks />
-        <SearchSection instructors={instructors} />
         <InstructorCTA />
+        <FinalCTA />
       </main>
       <Footer />
     </>

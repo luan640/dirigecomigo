@@ -61,9 +61,9 @@ create table students (
 create table instructors (
   id                  uuid primary key references profiles(id) on delete cascade,
   bio                 text,
-  price_per_lesson    numeric(10,2) not null check (price_per_lesson >= 50),
-  price_per_lesson_a  numeric(10,2) check (price_per_lesson_a is null or price_per_lesson_a >= 50),
-  price_per_lesson_b  numeric(10,2) check (price_per_lesson_b is null or price_per_lesson_b >= 50),
+  price_per_lesson    numeric(10,2) not null check (price_per_lesson >= 1),
+  price_per_lesson_a  numeric(10,2) check (price_per_lesson_a is null or price_per_lesson_a >= 1),
+  price_per_lesson_b  numeric(10,2) check (price_per_lesson_b is null or price_per_lesson_b >= 1),
   neighborhood        text not null,
   city                text not null default 'Fortaleza',
   state               text not null default 'CE',

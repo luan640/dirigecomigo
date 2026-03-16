@@ -812,7 +812,7 @@ function CheckoutContent() {
               </div>
 
               <div className="flex items-center justify-between rounded-xl bg-blue-50 px-4 py-3 text-sm">
-                <span className="text-gray-600">Aula com {instructor.name} Â· {timeStr.slice(0, 5)}</span>
+                <span className="text-gray-600">Aula com {instructor.name} · {timeStr.slice(0, 5)}</span>
                 <span className="font-bold text-blue-700">{formatCurrency(payableAmount)}</span>
               </div>
 

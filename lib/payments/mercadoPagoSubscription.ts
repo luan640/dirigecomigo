@@ -115,7 +115,7 @@ export async function ensureInstructorRow(db: DbClient, instructorId: string) {
     .from('instructors')
     .insert({
       id: instructorId,
-      price_per_lesson: 50,
+      price_per_lesson: 1,
       neighborhood: 'Centro',
     })
     .select('id')

@@ -22,19 +22,19 @@ const instructorSchema = z.object({
   price_car: z.coerce.number().nullable(),
   price_moto: z.coerce.number().nullable(),
 }).superRefine((values, ctx) => {
-  if ((values.service_mode === 'car' || values.service_mode === 'both') && (!values.price_car || values.price_car < 50)) {
+  if ((values.service_mode === 'car' || values.service_mode === 'both') && (!values.price_car || values.price_car < 1)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['price_car'],
-      message: 'Informe um valor de no minimo R$50 para carro',
+      message: 'Informe um valor de no minimo R$1 para carro',
     })
   }
 
-  if ((values.service_mode === 'moto' || values.service_mode === 'both') && (!values.price_moto || values.price_moto < 50)) {
+  if ((values.service_mode === 'moto' || values.service_mode === 'both') && (!values.price_moto || values.price_moto < 1)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['price_moto'],
-      message: 'Informe um valor de no minimo R$50 para moto',
+      message: 'Informe um valor de no minimo R$1 para moto',
     })
   }
 })
@@ -272,7 +272,7 @@ function OnboardingContent() {
           ? 'A'
           : 'B'
       const selectedPrices = [values.price_car, values.price_moto].filter(
-        (item): item is number => typeof item === 'number' && item >= 50,
+        (item): item is number => typeof item === 'number' && item >= 1,
       )
       const pricePerLesson = Math.min(...selectedPrices)
       if (selectedLatitude === null || selectedLongitude === null) {
@@ -623,7 +623,7 @@ function OnboardingContent() {
                 <input
                   {...instructorForm.register('price_car')}
                   type="number"
-                  min={50}
+                  min={1}
                   className={inputClassName}
                 />
               </Field>
@@ -634,7 +634,7 @@ function OnboardingContent() {
                 <input
                   {...instructorForm.register('price_moto')}
                   type="number"
-                  min={50}
+                  min={1}
                   className={inputClassName}
                 />
               </Field>
@@ -724,5 +724,4 @@ function Field({ label, error, children }: { label: string; error?: string; chil
 }
 
 const inputClassName = 'w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
-
 
