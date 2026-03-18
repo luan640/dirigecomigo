@@ -7,12 +7,20 @@
   --brand-blue-deep: #08285b;
   --brand-yellow: #f6c400;
   --brand-orange: #ff6b00;
-  --brand-green: #17b44a;
+  --brand-green: #21a637;
+  --brand-green-dark: #178a2e;
   --brand-lime: #8ccf10;
   --surface: #f4f8fc;
   --radius: 0.625rem;
   --background: #f7fbff;
   --foreground: #10233f;
+
+  /* Landing page dark theme — green identity */
+  --land-bg: #020d04;
+  --land-surface: #06140a;
+  --land-border: rgba(33,166,55,0.15);
+  --land-text: #e8f5ea;
+  --land-muted: #6b9675;
 }
 
 @theme inline {
@@ -38,17 +46,16 @@
   }
 
   body {
-    background:
-      radial-gradient(circle at top, rgba(246, 196, 0, 0.06), transparent 30%),
-      linear-gradient(180deg, #f9fcff 0%, #f4f8fc 100%);
-    color: var(--foreground);
-    font-family: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--land-bg);
+    color: var(--land-text);
+    font-family: 'Outfit', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
 
   h1, h2, h3, h4, h5, h6 {
+    font-family: 'Syne', system-ui, sans-serif;
     font-weight: 700;
-    line-height: 1.2;
+    line-height: 1.15;
   }
 }
 
@@ -91,16 +98,15 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #edf3f8;
+  background: #050e08;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #b9cad9;
+  background: #1a5c28;
   border-radius: 3px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: #8ea6bf;
+  background: #21a637;
 }
 
 @keyframes fadeUp {
@@ -154,7 +160,7 @@
 }
 
 .brand-panel {
-  background: linear-gradient(145deg, rgba(3, 31, 74, 0.96), rgba(8, 40, 91, 0.94));
+  background: linear-gradient(145deg, rgba(2,20,6,0.96), rgba(4,30,10,0.94));
 }
 
 .brand-outline {
@@ -165,9 +171,8 @@
   display: inline-block;
   background: linear-gradient(
     135deg,
-    var(--brand-orange) 0%,
-    var(--brand-yellow) 38%,
-    var(--brand-lime) 68%,
+    var(--brand-green) 0%,
+    var(--brand-yellow) 45%,
     var(--brand-green) 100%
   );
   background-size: 240% 100%;
@@ -177,4 +182,156 @@
   background-clip: text;
   will-change: background-position;
   animation: shimmerText 2.8s ease-in-out infinite alternate;
+}
+
+/* ─── New Landing Animations ─── */
+
+@keyframes marqueeLeft {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(33,166,55,0.4); }
+  50%       { box-shadow: 0 0 0 12px rgba(33,166,55,0); }
+}
+
+@keyframes roadGrid {
+  from { background-position: 0 0; }
+  to   { background-position: 0 60px; }
+}
+
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes carSlide {
+  0%   { transform: translateX(-120%) rotate(0deg); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translateX(120vw) rotate(0deg); opacity: 0; }
+}
+
+@keyframes dotPulse {
+  0%   { transform: scale(1); opacity: 1; }
+  50%  { transform: scale(1.6); opacity: 0.4; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes revealUp {
+  from { opacity: 0; transform: translateY(50px) skewY(2deg); }
+  to   { opacity: 1; transform: translateY(0) skewY(0deg); }
+}
+
+@keyframes glowPulse {
+  0%, 100% { filter: drop-shadow(0 0 8px rgba(33,166,55,0.5)); }
+  50%       { filter: drop-shadow(0 0 22px rgba(33,166,55,0.9)); }
+}
+
+.animate-marquee {
+  display: flex;
+  animation: marqueeLeft 30s linear infinite;
+}
+
+.animate-marquee-fast {
+  display: flex;
+  animation: marqueeLeft 18s linear infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.animate-road-grid {
+  animation: roadGrid 3s linear infinite;
+}
+
+.animate-dot-pulse {
+  animation: dotPulse 2s ease-in-out infinite;
+}
+
+.animate-slide-left {
+  animation: slideInLeft 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-slide-right {
+  animation: slideInRight 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-reveal-up {
+  animation: revealUp 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-glow-pulse {
+  animation: glowPulse 2.5s ease-in-out infinite;
+}
+
+.land-card {
+  background: rgba(6,20,10,0.8);
+  border: 1px solid rgba(33,166,55,0.12);
+  backdrop-filter: blur(12px);
+}
+
+.land-card:hover {
+  border-color: rgba(33,166,55,0.32);
+}
+
+.text-outline-yellow {
+  -webkit-text-stroke: 2px #f6c400;
+  color: transparent;
+}
+
+.hero-grid-bg {
+  background-image:
+    linear-gradient(rgba(33,166,55,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(33,166,55,0.05) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+.hero-road-lines {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 48px,
+    rgba(33,166,55,0.08) 48px,
+    rgba(33,166,55,0.08) 50px
+  );
+}
+
+.glow-yellow {
+  box-shadow: 0 0 40px rgba(246,196,0,0.25), 0 0 80px rgba(246,196,0,0.1);
+}
+
+.glow-green {
+  box-shadow: 0 0 40px rgba(33,166,55,0.25), 0 0 80px rgba(33,166,55,0.1);
+}
+
+.step-connector::after {
+  content: '';
+  position: absolute;
+  top: 28px;
+  right: -50%;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(33,166,55,0.5), rgba(33,166,55,0.1));
+}
+
+.noise-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
 }

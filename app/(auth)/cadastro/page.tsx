@@ -9,6 +9,8 @@ import { z } from 'zod'
 import { Eye, EyeOff, Loader2, GraduationCap, Car } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import BrandLogo from '@/components/layout/BrandLogo'
+import AuthLeftPanel from '@/components/auth/AuthLeftPanel'
 
 const schema = z.object({
   full_name: z.string().min(3, 'Nome deve ter no mínimo 3 caracteres'),
@@ -18,9 +20,7 @@ const schema = z.object({
 })
 
 type FormData = z.infer<typeof schema>
-type ExistingProfileLookup = {
-  id: string
-}
+type ExistingProfileLookup = { id: string }
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase()
@@ -62,12 +62,10 @@ function CadastroContent() {
       if (DEMO_MODE) {
         await new Promise(r => setTimeout(r, 1000))
         toast.success('Conta criada com sucesso!')
-        // Redirect to onboarding
         router.push(`/onboarding?role=${data.role}&name=${encodeURIComponent(data.full_name)}`)
         return
       }
 
-      // Production: Supabase auth
       const { createClient } = await import('@/lib/supabase/client')
       const supabase = createClient()
 
@@ -109,7 +107,6 @@ function CadastroContent() {
       }
 
       if (authData.user) {
-        // Create profile in profiles table
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (supabase.from('profiles') as any).upsert({
           id: authData.user.id,
@@ -117,7 +114,6 @@ function CadastroContent() {
           full_name: data.full_name,
           role: data.role,
         })
-
         toast.success('Conta criada! Complete seu perfil.')
         router.push(`/onboarding?role=${data.role}`)
       }
@@ -129,127 +125,142 @@ function CadastroContent() {
   }
 
   return (
-    <>
-      <h1 className="text-2xl font-extrabold text-gray-900 mb-1">Criar sua conta</h1>
-      <p className="text-sm text-gray-500 mb-6">
-        Já tem uma conta?{' '}
-        <Link href="/entrar" className="text-blue-700 font-semibold hover:underline">
-          Entrar
-        </Link>
-      </p>
+    <div className="fixed inset-0 z-50 flex overflow-hidden bg-[#020d04]">
+      <AuthLeftPanel
+        headline={<>Sua CNH<br /><span className="text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(120deg,#21a637 0%,#f6c400 100%)' }}>começa aqui.</span></>}
+        subtext="Conectamos alunos a instrutores qualificados em Fortaleza. Agende aulas práticas, acompanhe seu progresso e dirija com confiança."
+      />
 
-      {/* Role selector */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <button
-          type="button"
-          onClick={() => setValue('role', 'student')}
-          className={cn(
-            'flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all text-left',
-            selectedRole === 'student'
-              ? 'border-blue-600 bg-blue-50 text-blue-700'
-              : 'border-gray-200 hover:border-gray-300 text-gray-600'
-          )}
-        >
-          <GraduationCap className="w-7 h-7" />
-          <div>
-            <p className="font-semibold text-sm">Sou aluno</p>
-            <p className="text-xs opacity-70">Quero aprender a dirigir</p>
-          </div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setValue('role', 'instructor')}
-          className={cn(
-            'flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all text-left',
-            selectedRole === 'instructor'
-              ? 'border-blue-600 bg-blue-50 text-blue-700'
-              : 'border-gray-200 hover:border-gray-300 text-gray-600'
-          )}
-        >
-          <Car className="w-7 h-7" />
-          <div>
-            <p className="font-semibold text-sm">Sou instrutor</p>
-            <p className="text-xs opacity-70">Quero dar aulas</p>
-          </div>
-        </button>
-      </div>
-      {errors.role && <p className="text-xs text-red-500 -mt-4 mb-4">{errors.role.message}</p>}
-
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div>
-          <label className="text-sm font-medium text-gray-700 block mb-1.5">Nome completo</label>
-          <input
-            {...register('full_name')}
-            type="text"
-            autoComplete="name"
-            placeholder="Seu nome completo"
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          {errors.full_name && (
-            <p className="text-xs text-red-500 mt-1">{errors.full_name.message}</p>
-          )}
+      {/* ── Form panel ── */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 lg:px-10 overflow-y-auto bg-[#020d04]">
+        {/* Mobile logo */}
+        <div className="lg:hidden mb-8 self-start w-full max-w-sm mx-auto">
+          <Link href="/"><BrandLogo className="h-10 w-auto rounded-md" priority /></Link>
         </div>
 
-        <div>
-          <label className="text-sm font-medium text-gray-700 block mb-1.5">E-mail</label>
-          <input
-            {...register('email')}
-            type="email"
-            autoComplete="email"
-            placeholder="seu@email.com"
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          {errors.email && (
-            <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>
-          )}
-        </div>
+        <div className="w-full max-w-sm">
+          <h1
+            className="text-2xl font-bold text-[#e8f5ea] mb-1"
+            style={{ fontFamily: 'Syne, system-ui, sans-serif' }}
+          >
+            Criar sua conta
+          </h1>
+          <p className="text-sm text-[#6b9675] mb-7">
+            Já tem uma conta?{' '}
+            <Link href="/entrar" className="text-[#21a637] font-semibold hover:text-[#2dc447] transition-colors">
+              Entrar
+            </Link>
+          </p>
 
-        <div>
-          <label className="text-sm font-medium text-gray-700 block mb-1.5">Senha</label>
-          <div className="relative">
-            <input
-              {...register('password')}
-              type={showPassword ? 'text' : 'password'}
-              autoComplete="new-password"
-              placeholder="Mínimo 8 caracteres"
-              className="w-full px-4 py-3 pr-11 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+          {/* Role selector */}
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            {(
+              [
+                { value: 'student',    Icon: GraduationCap, title: 'Sou aluno',     sub: 'Quero aprender' },
+                { value: 'instructor', Icon: Car,           title: 'Sou instrutor', sub: 'Quero dar aulas' },
+              ] as const
+            ).map(({ value, Icon, title, sub }) => {
+              const active = selectedRole === value
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setValue('role', value)}
+                  className={cn(
+                    'flex flex-col items-start gap-3 p-4 rounded-2xl border-2 transition-all duration-200 text-left focus:outline-none',
+                    active
+                      ? 'border-[#21a637] bg-[#21a637]/10 text-[#2dc447]'
+                      : 'border-white/[0.08] bg-white/[0.03] text-[#6b9675] hover:border-white/20 hover:text-[#e8f5ea]'
+                  )}
+                >
+                  <div className={cn(
+                    'flex items-center justify-center w-9 h-9 rounded-xl transition-colors',
+                    active ? 'bg-[#21a637]/20' : 'bg-white/[0.06]'
+                  )}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm">{title}</p>
+                    <p className="text-xs opacity-70 mt-0.5">{sub}</p>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+          {errors.role && <p className="text-xs text-red-400 -mt-4 mb-4">{errors.role.message}</p>}
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {(
+              [
+                { name: 'full_name', label: 'Nome completo', type: 'text',  autoComplete: 'name',  placeholder: 'Seu nome completo' },
+                { name: 'email',     label: 'E-mail',        type: 'email', autoComplete: 'email', placeholder: 'seu@email.com'     },
+              ] as const
+            ).map(({ name, label, type, autoComplete, placeholder }) => (
+              <div key={name}>
+                <label className="block text-[10px] font-semibold text-[#6b9675] uppercase tracking-widest mb-1.5">
+                  {label}
+                </label>
+                <input
+                  {...register(name)}
+                  type={type}
+                  autoComplete={autoComplete}
+                  placeholder={placeholder}
+                  className="w-full px-4 py-3 bg-[#061409] border border-white/[0.08] rounded-xl text-sm text-[#e8f5ea] placeholder:text-[#2a4030] focus:outline-none focus:border-[#21a637] focus:ring-2 focus:ring-[#21a637]/20 transition-all"
+                />
+                {errors[name] && <p className="text-xs text-red-400 mt-1">{errors[name]?.message}</p>}
+              </div>
+            ))}
+
+            <div>
+              <label className="block text-[10px] font-semibold text-[#6b9675] uppercase tracking-widest mb-1.5">
+                Senha
+              </label>
+              <div className="relative">
+                <input
+                  {...register('password')}
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  placeholder="Mínimo 8 caracteres"
+                  className="w-full px-4 py-3 pr-11 bg-[#061409] border border-white/[0.08] rounded-xl text-sm text-[#e8f5ea] placeholder:text-[#2a4030] focus:outline-none focus:border-[#21a637] focus:ring-2 focus:ring-[#21a637]/20 transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2a4030] hover:text-[#6b9675] transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {errors.password && <p className="text-xs text-red-400 mt-1">{errors.password.message}</p>}
+            </div>
+
             <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl font-semibold text-sm text-black transition-all duration-200 mt-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+              style={{
+                background: 'linear-gradient(135deg, #21a637 0%, #178a2e 100%)',
+                boxShadow: loading ? 'none' : '0 6px 24px rgba(33,166,55,0.35)',
+              }}
             >
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {loading ? 'Criando conta...' : 'Criar conta grátis'}
             </button>
-          </div>
-          {errors.password && (
-            <p className="text-xs text-red-500 mt-1">{errors.password.message}</p>
-          )}
+          </form>
+
+          <p className="text-center text-xs text-[#2a4030] mt-5">
+            Ao criar sua conta você concorda com nossos{' '}
+            <Link href="/termos" className="text-[#6b9675] hover:text-[#e8f5ea] underline transition-colors">
+              Termos de Uso
+            </Link>
+          </p>
+
+          <p className="text-center text-[11px] text-[#1a3020] mt-10">
+            © {new Date().getFullYear()} DirigeComigo — Fortaleza e região metropolitana.
+          </p>
         </div>
-
-        {/* {selectedRole === 'instructor' && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
-            Como instrutor, será necessário assinar o plano mensal de <strong>R$15/mês</strong> para
-            ativar seu perfil.
-          </div>
-        )} */}
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-xl transition-colors disabled:opacity-60 mt-2"
-        >
-          {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-          {loading ? 'Criando conta...' : 'Criar conta grátis'}
-        </button>
-      </form>
-
-      <p className="text-center text-xs text-gray-400 mt-4">
-        Ao criar sua conta você concorda com nossos{' '}
-        <Link href="/termos" className="underline">Termos de Uso</Link>
-      </p>
-    </>
+      </div>
+    </div>
   )
 }
 
@@ -257,12 +268,16 @@ export default function CadastroPage() {
   return (
     <Suspense
       fallback={
-        <div className="py-6 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-            <Loader2 className="h-9 w-9 animate-spin text-blue-600" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020d04]">
+          <div className="text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#21a637]/15">
+              <Loader2 className="h-8 w-8 animate-spin text-[#21a637]" />
+            </div>
+            <h1 className="text-xl font-bold text-[#e8f5ea]" style={{ fontFamily: 'Syne, system-ui, sans-serif' }}>
+              Carregando cadastro
+            </h1>
+            <p className="text-sm text-[#6b9675] mt-1">Estamos preparando o formulário.</p>
           </div>
-          <h1 className="mb-2 text-2xl font-bold text-gray-900">Carregando cadastro</h1>
-          <p className="text-sm text-gray-500">Estamos preparando o formulario.</p>
         </div>
       }
     >

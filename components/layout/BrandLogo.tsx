@@ -11,7 +11,7 @@ export default function BrandLogo({
 }: BrandLogoProps) {
   return (
     <Image
-      src="/logo_oficial.png"
+      src="/logo-oficial.jpeg"
       alt="Direção Fácil"
       width={768}
       height={768}

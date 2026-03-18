@@ -1,3 +1,6 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
 import { Search, Calendar, Car, CheckCircle, Lock, X, Headphones } from 'lucide-react'
 
 const steps = [
@@ -5,133 +8,190 @@ const steps = [
     icon: Search,
     number: '01',
     title: 'Busque',
-    description:
-      'Pesquise instrutores pelo seu bairro ou cidade. Veja avaliacoes, precos e disponibilidade em tempo real.',
-    gradient: 'from-[rgba(255,107,0,0.18)] to-transparent',
-    iconBg: 'bg-[#fff1e8] text-[#d95c00]',
-    numColor: 'text-[#ff6b00]',
-    border: 'hover:border-[#ffd7c2]',
+    description: 'Pesquise instrutores pelo seu bairro. Veja avaliações, preços e disponibilidade em tempo real no mapa.',
+    accent: '#f6c400',
+    delay: '0s',
   },
   {
     icon: Calendar,
     number: '02',
     title: 'Agende',
-    description:
-      'Escolha o horário ideal direto no calendario do instrutor. Confirme o agendamento e pague com seguranca.',
-    gradient: 'from-[rgba(246,196,0,0.18)] to-transparent',
-    iconBg: 'bg-[#fff6cc] text-[#8a6a00]',
-    numColor: 'text-[#dca400]',
-    border: 'hover:border-[#f8e08f]',
+    description: 'Escolha o horário ideal direto no calendário do instrutor. Confirme e pague com total segurança.',
+    accent: '#21a637',
+    delay: '0.15s',
   },
   {
     icon: Car,
     number: '03',
-    title: 'Faca sua aula',
-    description:
-      'O instrutor vai ate voce. Aprenda a dirigir com confiança. Após a aula, deixe sua avaliação.',
-    gradient: 'from-[rgba(23,180,74,0.18)] to-transparent',
-    iconBg: 'bg-[#e8f8ee] text-[#12853a]',
-    numColor: 'text-[#17b44a]',
-    border: 'hover:border-[#b9ebc9]',
+    title: 'Dirija',
+    description: 'O instrutor vai até você. Aprenda no seu ritmo e, após a aula, deixe sua avaliação.',
+    accent: '#17b44a',
+    delay: '0.3s',
   },
 ]
 
 const trustBadges = [
-  {
-    label: 'Instrutores verificados',
-    sub: 'Documentacao conferida',
-    icon: CheckCircle,
-    color: 'text-[#d95c00]',
-    bg: 'bg-[#fff1e8]',
-  },
-  {
-    label: 'Pagamento seguro',
-    sub: 'Criptografia SSL',
-    icon: Lock,
-    color: 'text-[#8a6a00]',
-    bg: 'bg-[#fff6cc]',
-  },
-  {
-    label: 'Cancelamento grátis',
-    sub: 'Ate 24h antes',
-    icon: X,
-    color: 'text-emerald-600',
-    bg: 'bg-emerald-50',
-  },
-  {
-    label: 'Suporte ativo',
-    sub: 'Segunda a sábado',
-    icon: Headphones,
-    color: 'text-amber-600',
-    bg: 'bg-amber-50',
-  },
+  { label: 'Instrutores verificados', sub: 'Documentação conferida', icon: CheckCircle, accent: '#f6c400' },
+  { label: 'Pagamento seguro', sub: 'Criptografia SSL', icon: Lock, accent: '#21a637' },
+  { label: 'Cancelamento grátis', sub: 'Até 24h antes', icon: X, accent: '#17b44a' },
+  { label: 'Suporte ativo', sub: 'Segunda a sábado', icon: Headphones, accent: '#8ccf10' },
 ]
 
-export default function HowItWorks() {
+function StepCard({ step, index }: { step: (typeof steps)[0]; index: number }) {
+  const [visible, setVisible] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) setTimeout(() => setVisible(true), index * 150)
+    }, { threshold: 0.2 })
+    if (ref.current) observer.observe(ref.current)
+    return () => observer.disconnect()
+  }, [index])
+
+  const Icon = step.icon
+
   return (
-    <section id="como-funciona" className="bg-[#f4f8fc] py-24">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-16 text-center">
-          <span className="mb-4 inline-block rounded-full border border-[#ffe0bd] bg-[#fff1e8] px-4 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-[#d95c00]">
+    <div
+      ref={ref}
+      className="group relative rounded-3xl p-8 transition-all duration-700"
+      style={{
+        background: 'rgba(6,20,10,0.8)',
+        border: `1px solid rgba(255,255,255,0.06)`,
+        backdropFilter: 'blur(16px)',
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'translateY(0)' : 'translateY(48px)',
+      }}
+    >
+      {/* Hover glow fill */}
+      <div
+        className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+        style={{ background: `radial-gradient(circle at 20% 20%, ${step.accent}12 0%, transparent 60%)` }}
+      />
+
+      {/* Big number watermark */}
+      <span
+        className="absolute top-5 right-6 text-7xl font-black select-none pointer-events-none transition-all duration-300 group-hover:opacity-25"
+        style={{ color: step.accent, opacity: 0.12, fontFamily: "'Syne', sans-serif", lineHeight: 1 }}
+      >
+        {step.number}
+      </span>
+
+      <div className="relative z-10">
+        {/* Icon */}
+        <div
+          className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6 transition-transform duration-300 group-hover:scale-110"
+          style={{
+            background: `${step.accent}18`,
+            border: `1px solid ${step.accent}35`,
+          }}
+        >
+          <Icon className="w-7 h-7" style={{ color: step.accent }} />
+        </div>
+
+        {/* Step label */}
+        <span className="text-xs font-bold tracking-widest uppercase mb-3 block" style={{ color: step.accent }}>
+          Passo {step.number}
+        </span>
+
+        <h3 className="text-2xl font-black text-white mb-4" style={{ fontFamily: "'Syne', sans-serif" }}>
+          {step.title}
+        </h3>
+        <p className="text-sm leading-relaxed" style={{ color: 'var(--land-muted)' }}>
+          {step.description}
+        </p>
+      </div>
+
+      {/* Bottom accent */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-1 rounded-b-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+        style={{ background: `linear-gradient(90deg, transparent, ${step.accent}, transparent)` }}
+      />
+    </div>
+  )
+}
+
+export default function HowItWorks() {
+  const titleRef = useRef<HTMLDivElement>(null)
+  const [titleVisible, setTitleVisible] = useState(false)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) setTitleVisible(true)
+    }, { threshold: 0.2 })
+    if (titleRef.current) observer.observe(titleRef.current)
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <section
+      id="como-funciona"
+      className="py-28 relative overflow-hidden"
+      style={{ background: 'var(--land-surface)' }}
+    >
+      {/* Background glow */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-px"
+          style={{ background: 'linear-gradient(90deg, transparent, rgba(33,166,55,0.35), transparent)' }} />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[700px] h-px"
+          style={{ background: 'linear-gradient(90deg, transparent, rgba(33,166,55,0.2), transparent)' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(33,166,55,0.04) 0%, transparent 70%)' }} />
+      </div>
+
+      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div
+          ref={titleRef}
+          className="mb-16 text-center transition-all duration-700"
+          style={{ opacity: titleVisible ? 1 : 0, transform: titleVisible ? 'translateY(0)' : 'translateY(30px)' }}
+        >
+          <span className="mb-5 inline-block rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-widest"
+            style={{ background: 'rgba(33,166,55,0.1)', color: '#21a637', border: '1px solid rgba(33,166,55,0.25)' }}>
             Simples e rápido
           </span>
-          <h2 className="mt-2 mb-4 text-3xl font-black text-gray-900 md:text-4xl">
+          <h2 className="mt-3 mb-4 text-4xl font-black text-white md:text-5xl" style={{ fontFamily: "'Syne', sans-serif" }}>
             Como funciona
           </h2>
-          <p className="mx-auto max-w-xl text-lg leading-relaxed text-gray-500">
-            Em menos de 5 minutos vocâ encontra um instrutor qualificado e agenda sua primeira aula.
+          <p className="mx-auto max-w-xl text-lg" style={{ color: 'var(--land-muted)' }}>
+            Em menos de 5 minutos você encontra um instrutor qualificado e agenda sua primeira aula.
           </p>
         </div>
 
+        {/* Steps */}
         <div className="mb-16 grid grid-cols-1 gap-6 md:grid-cols-3">
-          {steps.map((step) => (
-            <div
-              key={step.number}
-              className={`group relative overflow-hidden rounded-3xl border border-gray-100 bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${step.border}`}
-            >
-              <div
-                className={`absolute inset-0 rounded-3xl bg-gradient-to-br ${step.gradient} opacity-0 transition-opacity duration-300 group-hover:opacity-100`}
-              />
-
-              <span
-                className={`absolute top-4 right-6 select-none text-6xl font-black opacity-15 ${step.numColor}`}
-              >
-                {step.number}
-              </span>
-
-              <div className="relative z-10">
-                <div
-                  className={`mb-6 flex h-14 w-14 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-110 ${step.iconBg}`}
-                >
-                  <step.icon className="h-7 w-7" />
-                </div>
-
-                {/* {i < steps.length - 1 && (
-                  <div className="absolute top-[3.5rem] -right-3 z-20 hidden h-6 w-6 items-center justify-center rounded-full border-2 border-gray-200 bg-white md:flex">
-                    <div className="h-2 w-2 rounded-full bg-gray-300" />
-                  </div>
-                )} */}
-
-                <h3 className="mb-3 text-xl font-bold text-gray-900">{step.title}</h3>
-                <p className="text-sm leading-relaxed text-gray-500">{step.description}</p>
-              </div>
-            </div>
+          {steps.map((step, i) => (
+            <StepCard key={step.number} step={step} index={i} />
           ))}
         </div>
 
+        {/* Connecting line (desktop) */}
+        <div className="hidden md:block relative -mt-[calc(50%+48px)] mb-[calc(50%+48px)] pointer-events-none" />
+
+        {/* Trust badges */}
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          {trustBadges.map(badge => (
-            <div
-              key={badge.label}
-              className="rounded-2xl border border-gray-100 bg-white p-5 text-center shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <div className={`mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${badge.bg}`}>
-                <badge.icon className={`h-5 w-5 ${badge.color}`} />
+          {trustBadges.map((badge, i) => {
+            const Icon = badge.icon
+            return (
+              <div
+                key={badge.label}
+                className="rounded-2xl p-5 text-center transition-all duration-300 group cursor-default"
+                style={{
+                  background: 'rgba(6,20,10,0.7)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  backdropFilter: 'blur(8px)',
+                }}
+              >
+                <div
+                  className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110"
+                  style={{ background: `${badge.accent}15`, border: `1px solid ${badge.accent}30` }}
+                >
+                  <Icon className="h-5 w-5" style={{ color: badge.accent }} />
+                </div>
+                <p className="text-sm font-bold text-white">{badge.label}</p>
+                <p className="mt-0.5 text-xs" style={{ color: 'var(--land-muted)' }}>{badge.sub}</p>
               </div>
-              <p className="text-sm font-bold text-gray-900">{badge.label}</p>
-              <p className="mt-0.5 text-xs text-gray-400">{badge.sub}</p>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
     </section>

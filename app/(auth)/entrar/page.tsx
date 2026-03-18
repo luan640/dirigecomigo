@@ -8,6 +8,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import BrandLogo from '@/components/layout/BrandLogo'
+import AuthLeftPanel from '@/components/auth/AuthLeftPanel'
 
 const schema = z.object({
   email: z.string().email('E-mail invalido'),
@@ -15,9 +17,6 @@ const schema = z.object({
 })
 
 type FormData = z.infer<typeof schema>
-
-const inputClassName =
-  'w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:border-[var(--brand-orange)] focus:outline-none focus:ring-2 focus:ring-[#ffd7a8] focus:border-transparent'
 
 function EntrarContent() {
   const router = useRouter()
@@ -41,20 +40,12 @@ function EntrarContent() {
         await new Promise((r) => setTimeout(r, 800))
         if (data.email === 'aluno@demo.com') {
           toast.success('Bem-vindo de volta!')
-          if (redirectTo) {
-            router.push(redirectTo)
-            return
-          }
-          router.push('/aluno/dashboard')
+          router.push(redirectTo || '/aluno/dashboard')
           return
         }
         if (data.email === 'instrutor@demo.com') {
           toast.success('Bem-vindo de volta!')
-          if (redirectTo) {
-            router.push(redirectTo)
-            return
-          }
-          router.push('/painel/assinatura')
+          router.push(redirectTo || '/painel/assinatura')
           return
         }
         toast.error('Demo: use aluno@demo.com ou instrutor@demo.com')
@@ -213,77 +204,110 @@ function EntrarContent() {
   }
 
   return (
-    <>
-      <h1 className="mb-1 text-2xl font-extrabold text-gray-900">Autentique-se</h1>
-      <p className="mb-6 text-sm text-gray-500">
-        Ainda nao tem conta?{' '}
-        <Link href="/cadastro" className="font-semibold text-[var(--brand-orange)] hover:underline">
-          Cadastre-se gratis
-        </Link>
-      </p>
+    <div className="fixed inset-0 z-50 flex overflow-hidden bg-[#020d04]">
+      <AuthLeftPanel
+        headline={<>De volta<br /><span className="text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(120deg,#21a637 0%,#f6c400 100%)' }}>ao volante.</span></>}
+        subtext="Acesse sua conta e retome suas aulas, acompanhe seu progresso ou gerencie seus alunos em Fortaleza."
+      />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">E-mail</label>
-          <input
-            {...register('email')}
-            type="email"
-            autoComplete="email"
-            placeholder="seu@email.com"
-            className={inputClassName}
-          />
-          {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
+      {/* ── Form panel ── */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 lg:px-10 overflow-y-auto bg-[#020d04]">
+        {/* Mobile logo */}
+        <div className="lg:hidden mb-8 self-start w-full max-w-sm mx-auto">
+          <Link href="/"><BrandLogo className="h-10 w-auto rounded-md" priority /></Link>
         </div>
 
-        <div>
-          <div className="mb-1.5 flex items-center justify-between">
-            <label className="text-sm font-medium text-gray-700">Senha</label>
-            <Link href="/recuperar-senha" className="text-xs text-[var(--brand-navy)] hover:underline">
-              Esqueceu a senha?
+        <div className="w-full max-w-sm">
+          <h1
+            className="text-2xl font-bold text-[#e8f5ea] mb-1"
+            style={{ fontFamily: 'Syne, system-ui, sans-serif' }}
+          >
+            Entrar na conta
+          </h1>
+          <p className="text-sm text-[#6b9675] mb-7">
+            Ainda não tem conta?{' '}
+            <Link href="/cadastro" className="text-[#21a637] font-semibold hover:text-[#2dc447] transition-colors">
+              Cadastre-se grátis
             </Link>
-          </div>
-          <div className="relative">
-            <input
-              {...register('password')}
-              type={showPassword ? 'text' : 'password'}
-              autoComplete="current-password"
-              placeholder="********"
-              className={`${inputClassName} pr-11`}
-            />
+          </p>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div>
+              <label className="block text-[10px] font-semibold text-[#6b9675] uppercase tracking-widest mb-1.5">
+                E-mail
+              </label>
+              <input
+                {...register('email')}
+                type="email"
+                autoComplete="email"
+                placeholder="seu@email.com"
+                className="w-full px-4 py-3 bg-[#061409] border border-white/[0.08] rounded-xl text-sm text-[#e8f5ea] placeholder:text-[#2a4030] focus:outline-none focus:border-[#21a637] focus:ring-2 focus:ring-[#21a637]/20 transition-all"
+              />
+              {errors.email && <p className="mt-1 text-xs text-red-400">{errors.email.message}</p>}
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-[10px] font-semibold text-[#6b9675] uppercase tracking-widest">
+                  Senha
+                </label>
+                <Link
+                  href="/recuperar-senha"
+                  className="text-[10px] text-[#6b9675] hover:text-[#21a637] transition-colors"
+                >
+                  Esqueceu a senha?
+                </Link>
+              </div>
+              <div className="relative">
+                <input
+                  {...register('password')}
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  className="w-full px-4 py-3 pr-11 bg-[#061409] border border-white/[0.08] rounded-xl text-sm text-[#e8f5ea] placeholder:text-[#2a4030] focus:outline-none focus:border-[#21a637] focus:ring-2 focus:ring-[#21a637]/20 transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2a4030] hover:text-[#6b9675] transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {errors.password && <p className="mt-1 text-xs text-red-400">{errors.password.message}</p>}
+            </div>
+
             <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400 hover:text-[var(--brand-orange)]"
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl font-semibold text-sm text-black transition-all duration-200 mt-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+              style={{
+                background: 'linear-gradient(135deg, #21a637 0%, #178a2e 100%)',
+                boxShadow: loading ? 'none' : '0 6px 24px rgba(33,166,55,0.35)',
+              }}
             >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {loading ? 'Entrando...' : 'Entrar'}
             </button>
-          </div>
-          {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>}
+          </form>
+
+          <p className="text-center text-xs text-[#2a4030] mt-5">
+            Ao entrar você concorda com nossos{' '}
+            <Link href="/termos" className="text-[#6b9675] hover:text-[#e8f5ea] underline transition-colors">
+              Termos de Uso
+            </Link>{' '}
+            e{' '}
+            <Link href="/privacidade" className="text-[#6b9675] hover:text-[#e8f5ea] underline transition-colors">
+              Política de Privacidade
+            </Link>
+          </p>
+
+          <p className="text-center text-[11px] text-[#1a3020] mt-10">
+            © {new Date().getFullYear()} DirigeComigo — Fortaleza e região metropolitana.
+          </p>
         </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand-orange)] px-4 py-3 font-semibold text-white transition-colors hover:bg-[#e45f00] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-          {loading ? 'Entrando...' : 'Entrar'}
-        </button>
-      </form>
-
-      <div className="mt-4 text-center">
-        <p className="text-xs text-gray-400">
-          Ao entrar voce concorda com nossos{' '}
-          <Link href="/termos" className="underline hover:text-gray-600">
-            Termos de Uso
-          </Link>{' '}
-          e{' '}
-          <Link href="/privacidade" className="underline hover:text-gray-600">
-            Politica de Privacidade
-          </Link>
-        </p>
       </div>
-    </>
+    </div>
   )
 }
 
@@ -291,12 +315,16 @@ export default function EntrarPage() {
   return (
     <Suspense
       fallback={
-        <div className="py-6 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#fff7db]">
-            <Loader2 className="h-9 w-9 animate-spin text-[var(--brand-orange)]" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020d04]">
+          <div className="text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#21a637]/15">
+              <Loader2 className="h-8 w-8 animate-spin text-[#21a637]" />
+            </div>
+            <h1 className="text-xl font-bold text-[#e8f5ea]" style={{ fontFamily: 'Syne, system-ui, sans-serif' }}>
+              Carregando acesso
+            </h1>
+            <p className="text-sm text-[#6b9675] mt-1">Estamos preparando a tela de login.</p>
           </div>
-          <h1 className="mb-2 text-2xl font-bold text-gray-900">Carregando acesso</h1>
-          <p className="text-sm text-gray-500">Estamos preparando a tela de login.</p>
         </div>
       }
     >

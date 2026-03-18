@@ -1,6 +1,7 @@
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import HeroSection from '@/components/landing/HeroSection'
+import MarqueeSection from '@/components/landing/MarqueeSection'
 import InstructorCarousel from '@/components/landing/InstructorCarousel'
 import SearchSection from '@/components/landing/SearchSection'
 import BenefitsSection from '@/components/landing/BenefitsSection'
@@ -26,8 +27,9 @@ export default async function HomePage() {
     <>
       <AuthCodeHandler />
       <Navbar />
-      <main className="overflow-hidden bg-white">
+      <main style={{ background: 'var(--land-bg)' }} className="overflow-hidden">
         <HeroSection />
+        <MarqueeSection />
         <InstructorCarousel instructors={list} />
         <SearchSection instructors={list} />
         <BenefitsSection />
