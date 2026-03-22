@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
-import { CheckCircle2, XCircle, Loader2, CreditCard, Shield, Zap } from 'lucide-react'
+import { CheckCircle2, XCircle, Loader2, CreditCard, Shield, Zap, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -43,11 +43,15 @@ function normalizeSubscription(raw: SubscriptionPayload | null) {
   }
 }
 
+type InstructorStatus = 'pending' | 'approved' | 'rejected' | null
+
 function AssinaturaContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(true)
+  const [instructorStatus, setInstructorStatus] = useState<InstructorStatus>(null)
+  const [subscriptionPrice, setSubscriptionPrice] = useState(PLATFORM_CONFIG.INSTRUCTOR_SUBSCRIPTION_PRICE)
   const [sub, setSub] = useState(() =>
     normalizeSubscription(null)
   )
@@ -60,11 +64,24 @@ function AssinaturaContent() {
   const loadSubscription = async () => {
     setFetching(true)
     try {
-      const res = await fetch('/api/subscriptions/status', { cache: 'no-store' })
-      const payload = await res.json()
-      if (!res.ok) throw new Error(payload?.error || 'Falha ao buscar assinatura.')
-      setSub(normalizeSubscription(payload?.data || null))
-      return payload?.data || null
+      const [subRes, instrRes] = await Promise.all([
+        fetch('/api/subscriptions/status', { cache: 'no-store' }),
+        fetch('/api/instructor/status', { cache: 'no-store' }),
+      ])
+      const subPayload = await subRes.json()
+      if (!subRes.ok) throw new Error(subPayload?.error || 'Falha ao buscar assinatura.')
+      setSub(normalizeSubscription(subPayload?.data || null))
+      if (typeof subPayload?.subscriptionPrice === 'number') {
+        setSubscriptionPrice(subPayload.subscriptionPrice)
+      }
+
+      if (instrRes.ok) {
+        const instrPayload = await instrRes.json()
+        const st = instrPayload?.data?.status as string | undefined
+        setInstructorStatus((st as InstructorStatus) ?? null)
+      }
+
+      return subPayload?.data || null
     } catch (err) {
       toast.error((err as Error).message || 'Erro ao carregar assinatura.')
       return null
@@ -165,13 +182,27 @@ function AssinaturaContent() {
     return format(new Date(d + 'T00:00:00'), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
   }
 
+  const isPending = instructorStatus === 'pending' || instructorStatus === null
+
   return (
     <div className="max-w-xl mx-auto space-y-5">
       <h1 className="text-2xl font-extrabold text-gray-900">Assinatura</h1>
 
-      {!isActive && (
+      {isPending && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-4 flex items-start gap-3">
+          <Clock className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-blue-800">Cadastro em avaliação</p>
+            <p className="text-sm text-blue-700 mt-0.5">
+              Seu cadastro está sendo analisado pela nossa equipe. Assim que for aprovado, você poderá ativar a assinatura e ter acesso completo ao painel.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {!isPending && !isActive && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
-          Seu acesso ao painel esta bloqueado. Ative a assinatura de {formatCurrency(PLATFORM_CONFIG.INSTRUCTOR_SUBSCRIPTION_PRICE)}/mes para liberar todas as opcoes.
+          Seu acesso ao painel esta bloqueado. Ative a assinatura de {formatCurrency(subscriptionPrice)}/mes para liberar todas as opcoes.
         </div>
       )}
 
@@ -196,34 +227,34 @@ function AssinaturaContent() {
               <div>
                 <p className="text-xs text-gray-400">Valor mensal</p>
                 <p className="font-bold text-gray-900 mt-0.5">
-                  {formatCurrency(sub.amount)}<span className="text-xs font-normal text-gray-400">/mes</span>
+                  {formatCurrency(subscriptionPrice)}<span className="text-xs font-normal text-gray-400">/mes</span>
                 </p>
               </div>
-              <div>
-                <p className="text-xs text-gray-400">Renova em</p>
-                <p className="font-bold text-gray-900 mt-0.5 text-sm">{formatDate(sub.current_period_end)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-400">Inicio do periodo</p>
-                <p className="font-medium text-gray-700 mt-0.5 text-sm">{formatDate(sub.current_period_start)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-400">Comissão por aula</p>
-                <p className="font-bold text-gray-900 mt-0.5">8%</p>
-              </div>
+              {isActive && (
+                <>
+                  <div>
+                    <p className="text-xs text-gray-400">Renova em</p>
+                    <p className="font-bold text-gray-900 mt-0.5 text-sm">{formatDate(sub.current_period_end)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Inicio do periodo</p>
+                    <p className="font-medium text-gray-700 mt-0.5 text-sm">{formatDate(sub.current_period_start)}</p>
+                  </div>
+                </>
+              )}
             </div>
 
-            {!isActive && (
+            {!isActive && !isPending && (
               <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-3">
                 <p className="text-sm font-semibold text-gray-800">Pagamento recorrente seguro no Mercado Pago</p>
                 <p className="text-xs text-gray-500">
-                  Voce sera redirecionado para um ambiente seguro do Mercado Pago para autorizar a assinatura de {formatCurrency(PLATFORM_CONFIG.INSTRUCTOR_SUBSCRIPTION_PRICE)}/mes.
+                  Voce sera redirecionado para um ambiente seguro do Mercado Pago para autorizar a assinatura de {formatCurrency(subscriptionPrice)}/mes.
                 </p>
               </div>
             )}
 
             <div className="mt-4 flex gap-3">
-              {!isActive && (
+              {!isActive && !isPending && (
                 <button
                   onClick={handleRenew}
                   disabled={loading}

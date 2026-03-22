@@ -15,7 +15,6 @@ type BookingSnapshot = {
   id: string
   student_id?: string | null
   total_amount?: number | null
-  gross_amount?: number | null
   platform_fee?: number | null
   instructor_net?: number | null
 }
@@ -156,7 +155,7 @@ export async function linkMercadoPagoPaymentToBooking(
   const db = supabase as any
   const bookingLookup = await db
     .from('bookings')
-    .select('id, student_id, total_amount, gross_amount, platform_fee, instructor_net')
+    .select('id, student_id, total_amount, platform_fee, instructor_net')
     .eq('id', bookingId)
     .limit(1)
     .maybeSingle()
@@ -166,7 +165,7 @@ export async function linkMercadoPagoPaymentToBooking(
   }
 
   const booking = bookingLookup.data as BookingSnapshot
-  const amount = Number(booking.total_amount || booking.gross_amount || input.amount || 0)
+  const amount = Number(booking.total_amount || input.amount || 0)
   const paymentMethod = String(input.metadata?.paymentMethod || 'pix') === 'card' ? 'card' : 'pix'
   const split = calculatePaymentSplit(amount, paymentMethod)
 

@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   User,
   Wallet,
+  BookOpen,
 } from 'lucide-react'
 
 import Navbar from '@/components/layout/Navbar'
@@ -18,6 +19,7 @@ const navItems = [
   { href: '/painel/dashboard', label: 'Início', icon: LayoutDashboard },
   { href: '/painel/agenda', label: 'Agenda', icon: CalendarDays },
   { href: '/painel/horarios', label: 'Horários', icon: Clock4 },
+  { href: '/painel/servicos', label: 'Meus Serviços', icon: BookOpen },
   { href: '/painel/carteira', label: 'Carteira', icon: Wallet },
   { href: '/painel/analytics', label: 'Relatórios', icon: BarChart2 },
   { href: '/painel/perfil', label: 'Meu perfil', icon: User },

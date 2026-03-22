@@ -103,6 +103,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ data: intent, error: null })
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message || 'Erro ao criar PIX.' }, { status: 500 })
+    const raw = String((err as Error).message || '')
+    let message = 'Erro ao criar pagamento PIX.'
+    if (raw.toLowerCase().includes('collector user without key')) {
+      message = 'A conta do Mercado Pago ainda não tem chave Pix cadastrada. Configure uma chave no painel do MP e tente novamente.'
+    } else if (raw) {
+      message = raw.replace(/null$/i, '').trim() || message
+    }
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

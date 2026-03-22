@@ -5,9 +5,10 @@ import { Star, MapPin, Car, CheckCircle2 } from 'lucide-react'
 import { loadPublicInstructors } from '@/lib/publicInstructors'
 import { DEFAULT_PLATFORM_PRICING_SETTINGS, normalizePlatformPricingSettings } from '@/lib/platformPricing'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { VEHICLE_CATEGORY_LABELS } from '@/constants/pricing'
-import { generateScheduleWindow } from '@/lib/schedule'
+import { generateScheduleWindow, toMinutes, toTimeLabel } from '@/lib/schedule'
 import { getSaoPauloNow, getSaoPauloToday, parseDateString } from '@/lib/timezone'
 import Navbar from '@/components/layout/Navbar'
 import BookingSection from '@/components/ui/PublicBookingSection'
@@ -72,11 +73,22 @@ export async function generateStaticParams() {
   return []
 }
 
+function getAdminDb() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return null
+  return createAdminClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+}
+
 async function loadInstructorProfileData(id: string) {
   const [instructors, supabase] = await Promise.all([loadPublicInstructors(), createClient()])
   const instructor = instructors.find((item) => item.id === id) || null
   if (!instructor) return { instructor: null, reviews: [], availability: [] }
   const todayStr = getSaoPauloToday()
+
+  // Use service role for bookings query to bypass RLS — needed to show occupied slots to any visitor
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const adminDb = (getAdminDb() || supabase) as any
 
   const [availabilityResult, bookingResult, instructorMetaResult, platformSettingsResult] = await Promise.all([
     supabase
@@ -86,7 +98,7 @@ async function loadInstructorProfileData(id: string) {
       .gte('date', todayStr)
       .order('date', { ascending: true })
       .order('start_time', { ascending: true }),
-    supabase
+    adminDb
       .from('bookings')
       .select('availability_slot_id,scheduled_date,start_time,status')
       .eq('instructor_id', id)
@@ -111,21 +123,35 @@ async function loadInstructorProfileData(id: string) {
   const safeAvailabilityRows: AvailabilityRow[] = Array.isArray(availabilityRows) ? availabilityRows : []
   const safeBookingRows: BookingRow[] = Array.isArray(bookingRows) ? bookingRows : []
 
-  const occupiedSlotKeys = new Set<string>(
-    safeBookingRows
-      .filter((row) => {
-        const status = String(row.status || '')
-        return status !== 'cancelled' && status !== 'no_show'
-      })
-      .map((row) => {
-        const availabilityId = String(row.availability_slot_id || '')
-        if (availabilityId) return `id:${availabilityId}`
-        const date = String(row.scheduled_date || '').slice(0, 10)
-        const time = String(row.start_time || '').slice(0, 5)
-        return date && time ? `time:${date}-${time}` : ''
-      })
-      .filter(Boolean),
+  const activeBookings = safeBookingRows.filter(
+    (row) => !['cancelled', 'no_show'].includes(String(row.status || '')),
   )
+
+  // Keys for instructor_availability rows (exact slot UUID or time match)
+  const occupiedSlotKeys = new Set<string>(
+    activeBookings.map((row) => {
+      const availabilityId = String(row.availability_slot_id || '')
+      if (availabilityId) return `id:${availabilityId}`
+      const date = String(row.scheduled_date || '').slice(0, 10)
+      const time = String(row.start_time || '').slice(0, 5)
+      return date && time ? `time:${date}-${time}` : ''
+    }).filter(Boolean),
+  )
+
+  // Lookup for generateScheduleWindow — format 'YYYY-MM-DD-HH:MM', expanded to cover
+  // all sub-slots within a 60-min booking window so smaller slots are blocked too
+  const slotMinutes = instructor.weekly_schedule?.slot_minutes ?? 60
+  const BOOKING_DURATION_MINUTES = 60
+  const scheduleLookup = new Set<string>()
+  for (const row of activeBookings) {
+    const date = String(row.scheduled_date || '').slice(0, 10)
+    const startTime = String(row.start_time || '').slice(0, 5)
+    if (!date || !startTime) continue
+    const startMin = toMinutes(startTime)
+    for (let t = startMin; t < startMin + BOOKING_DURATION_MINUTES; t += slotMinutes) {
+      scheduleLookup.add(`${date}-${toTimeLabel(t)}`)
+    }
+  }
 
   const todayDate = getSaoPauloNow()
   const mappedAvailability: AvailabilitySlot[] = safeAvailabilityRows.map((slot) => ({
@@ -143,7 +169,7 @@ async function loadInstructorProfileData(id: string) {
   const generatedFromWeeklySchedule = instructor.weekly_schedule
     ? generateScheduleWindow({
         settings: instructor.weekly_schedule,
-        bookedLookup: occupiedSlotKeys,
+        bookedLookup: scheduleLookup,
         startDate: todayDate,
         daysAhead: 60,
       }).map((slot) => ({
@@ -195,7 +221,7 @@ async function loadInstructorProfileData(id: string) {
                 date: dateStr,
                 start_time: template.start_time,
                 end_time: template.end_time,
-                is_booked: occupiedSlotKeys.has(`time:${dateStr}-${template.start_time}`),
+                is_booked: scheduleLookup.has(`${dateStr}-${template.start_time}`),
                 is_blocked: false,
               })
             }
@@ -328,14 +354,24 @@ export default async function InstructorProfilePage({ params }: { params: Promis
                 <h2 className="mb-4 text-lg font-bold text-gray-900">Detalhes da aula</h2>
                 <div className="grid grid-cols-2 gap-4">
                   <Detail
-                    label="Categoria CNH"
-                    value={`Cat. ${instructor.category} - ${VEHICLE_CATEGORY_LABELS[instructor.category]?.split('(')[0] || ''}`}
+                    label="Categorias CNH"
+                    value={
+                      instructor.categories?.length
+                        ? instructor.categories.map(c => `Cat. ${c}`).join(', ')
+                        : `Cat. ${instructor.category}`
+                    }
                   />
-                  <Detail label="Veiculo" value={instructor.vehicle_brand || 'Nao informado'} />
-                  <Detail label="Tipo de veiculo" value={instructor.vehicle_type || 'Seda'} />
-                  <Detail label="Duracao da aula" value="60 minutos" />
+                  {instructor.vehicle_brand && (
+                    <Detail label="Veiculo" value={instructor.vehicle_brand} />
+                  )}
+                  <Detail
+                    label="Duracao da aula"
+                    value={`${instructor.weekly_schedule?.slot_minutes ?? 60} minutos`}
+                  />
                   <Detail label="Local de aula" value={`${instructor.neighborhood} e arredores`} />
-                  <Detail label="Total de alunos" value={`${instructor.total_lessons}+ formados`} />
+                  {instructor.total_lessons > 0 && (
+                    <Detail label="Total de alunos" value={`${instructor.total_lessons}+ formados`} />
+                  )}
                 </div>
               </div>
 

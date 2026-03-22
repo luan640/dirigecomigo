@@ -16,27 +16,8 @@ const schema = z.object({
   bio: z.string().max(400, 'Maximo 400 caracteres').optional(),
   neighborhood: z.string().min(2, 'Informe o bairro'),
   phone: z.string().optional(),
-  service_mode: z.enum(['car', 'moto', 'both']),
-  price_car: z.coerce.number().nullable(),
-  price_moto: z.coerce.number().nullable(),
   min_advance_booking_hours: z.coerce.number().int().min(0, 'Minimo 0h').max(168, 'Maximo 168h'),
   cancellation_notice_hours: z.coerce.number().int().min(1, 'Minimo 1h').max(720, 'Maximo 720h'),
-}).superRefine((values, ctx) => {
-  if ((values.service_mode === 'car' || values.service_mode === 'both') && (!values.price_car || values.price_car < 1)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['price_car'],
-      message: 'Informe um valor de no minimo R$1 para carro',
-    })
-  }
-
-  if ((values.service_mode === 'moto' || values.service_mode === 'both') && (!values.price_moto || values.price_moto < 1)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['price_moto'],
-      message: 'Informe um valor de no minimo R$1 para moto',
-    })
-  }
 })
 
 type FormData = z.infer<typeof schema>
@@ -78,15 +59,10 @@ export default function PainelPerfilPage() {
       bio: '',
       neighborhood: '',
       phone: '',
-      service_mode: 'car',
-      price_car: 80,
-      price_moto: null,
       min_advance_booking_hours: 2,
       cancellation_notice_hours: 24,
     },
   })
-
-  const serviceMode = watch('service_mode')
 
   useEffect(() => {
     const query = locationQuery.trim()
@@ -129,21 +105,12 @@ export default function PainelPerfilPage() {
         const profile = data?.profile || {}
         const nextFullName = String(profile.full_name || '')
         const nextEmail = String(profile.email || '')
-        const rawCategories = Array.isArray(data?.categories) ? data.categories : []
-        const normalizedCategories = rawCategories.map((item: unknown) => String(item))
-        const fallbackCategory = String(data?.category || '')
-        const hasCar = normalizedCategories.includes('B') || fallbackCategory === 'B' || fallbackCategory === 'AB'
-        const hasMoto = normalizedCategories.includes('A') || fallbackCategory === 'A' || fallbackCategory === 'AB'
-
         reset({
           full_name: nextFullName,
           email: nextEmail,
           bio: String(data?.bio || ''),
           neighborhood: String(data?.neighborhood || ''),
           phone: String(profile.phone || ''),
-          service_mode: hasCar && hasMoto ? 'both' : hasMoto ? 'moto' : 'car',
-          price_car: hasCar ? Number(data?.price_per_lesson_b ?? data?.price_per_lesson ?? 80) : null,
-          price_moto: hasMoto ? Number(data?.price_per_lesson_a ?? data?.price_per_lesson ?? 80) : null,
           min_advance_booking_hours: Number(data?.min_advance_booking_hours ?? 2),
           cancellation_notice_hours: Number(data?.cancellation_notice_hours ?? 24),
         })
@@ -217,22 +184,6 @@ export default function PainelPerfilPage() {
 
       if (profileError) throw profileError
 
-      const categories = values.service_mode === 'both'
-        ? ['A', 'B']
-        : values.service_mode === 'moto'
-          ? ['A']
-          : ['B']
-
-      const primaryCategory = values.service_mode === 'both'
-        ? 'AB'
-        : values.service_mode === 'moto'
-          ? 'A'
-          : 'B'
-
-      const selectedPrices = [values.price_car, values.price_moto].filter(
-        (item): item is number => typeof item === 'number' && item >= 1,
-      )
-
       const instructorPayload: Record<string, unknown> = {
         bio: values.bio || null,
         neighborhood: values.neighborhood,
@@ -240,12 +191,6 @@ export default function PainelPerfilPage() {
         state: selectedState,
         latitude: selectedLatitude,
         longitude: selectedLongitude,
-        category: primaryCategory,
-        categories,
-        price_per_lesson: Math.min(...selectedPrices),
-        price_per_lesson_a: categories.includes('A') ? values.price_moto : null,
-        price_per_lesson_b: categories.includes('B') ? values.price_car : null,
-        vehicle_type: values.service_mode === 'both' ? 'Carro e moto' : values.service_mode === 'moto' ? 'Moto' : 'Carro',
         min_advance_booking_hours: values.min_advance_booking_hours,
         cancellation_notice_hours: values.cancellation_notice_hours,
       }
@@ -483,56 +428,6 @@ export default function PainelPerfilPage() {
               </p>
             </Field>
           </div>
-        </section>
-
-        <section className="space-y-4 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">Serviços e preços</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Defina o que você oferece hoje e quanto cobra por tipo de aula.
-            </p>
-          </div>
-
-          <Field label="Serviços oferecidos" error={errors.service_mode?.message}>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {[
-                { value: 'car', label: 'Apenas carro' },
-                { value: 'moto', label: 'Apenas moto' },
-                { value: 'both', label: 'Carro e moto' },
-              ].map(option => (
-                <label
-                  key={option.value}
-                  className={`cursor-pointer rounded-2xl border p-4 text-sm font-semibold transition-colors ${
-                    serviceMode === option.value
-                      ? 'border-blue-600 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                  }`}
-                >
-                  <input type="radio" value={option.value} {...register('service_mode')} className="sr-only" />
-                  {option.label}
-                </label>
-              ))}
-            </div>
-          </Field>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {(serviceMode === 'car' || serviceMode === 'both') && (
-              <Field label="Quanto você quer receber por aula de carro? (R$)" error={errors.price_car?.message}>
-                <input {...register('price_car')} type="number" min={1} className={inp} />
-              </Field>
-            )}
-
-            {(serviceMode === 'moto' || serviceMode === 'both') && (
-              <Field label="Quanto você quer receber por aula de moto? (R$)" error={errors.price_moto?.message}>
-                <input {...register('price_moto')} type="number" min={1} className={inp} />
-              </Field>
-            )}
-          </div>
-
-          <p className="text-xs text-gray-500">
-            Esse e o valor liquido que voce quer receber. O checkout adiciona o acrescimo da plataforma conforme Pix ou cartao.
-          </p>
-
         </section>
 
         <section className="space-y-4 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">

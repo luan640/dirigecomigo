@@ -13,7 +13,7 @@ import {
 import { toast } from 'sonner'
 
 import { BRAZIL_STATES } from '@/constants/locations'
-import { searchLocationSuggestionsAction, type AddressSuggestion } from '@/lib/location'
+import { searchLocationSuggestionsAction, lookupCepAction, type AddressSuggestion } from '@/lib/location'
 import { createClient } from '@/lib/supabase/client'
 import {
   deleteAvatarAction, uploadAvatarAction, uploadCnhAction,
@@ -39,8 +39,10 @@ const instructorSchema = z.object({
 
 const studentSchema = z.object({
   phone: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v.length === 10 || v.length === 11, 'Informe um telefone válido com DDD (10 ou 11 dígitos)'),
-  city: z.string().min(1, 'Informe a cidade'),
-  state: z.string().min(1, 'Selecione o estado'),
+  cep: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v.length === 8, 'CEP inválido — informe 8 dígitos'),
+  city: z.string().min(1, 'CEP não encontrado'),
+  state: z.string().min(1, 'CEP não encontrado'),
+  goal: z.enum(['exam', 'fear'], { required_error: 'Selecione seu objetivo' }),
 })
 
 type InstructorFormData = z.infer<typeof instructorSchema>
@@ -101,6 +103,7 @@ function getFallbackLetter(name: string) {
 
 const inputClass = 'w-full px-4 py-3 bg-white/[0.06] border border-white/[0.18] rounded-xl text-sm text-white placeholder:text-[#6b7280] focus:outline-none focus:border-white/40 focus:ring-2 focus:ring-white/10 transition-all'
 const inputClassReadonly = `${inputClass} opacity-50 cursor-not-allowed`
+const inputClassLight = 'w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all'
 
 function Field({ label, error, hint, children }: { label: string; error?: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -164,11 +167,11 @@ function StudentDoneScreen({ onContinue }: { onContinue: () => void }) {
         style={{ background: 'rgba(33,166,55,0.15)' }}>
         <CheckCircle2 className="h-9 w-9 text-[#21a637]" />
       </div>
-      <h2 className="mb-2 text-xl font-bold text-[#e8f5ea]"
+      <h2 className="mb-2 text-xl font-bold text-gray-900"
         style={{ fontFamily: 'Syne, system-ui, sans-serif' }}>
         Tudo pronto!
       </h2>
-      <p className="mb-6 text-sm text-[#6b9675]">
+      <p className="mb-6 text-sm text-gray-500">
         Sua conta está ativa. Agora você pode buscar instrutores.
       </p>
       <button
@@ -235,9 +238,12 @@ function OnboardingContent() {
     defaultValues: { full_name: '', email: '', phone: '', birth_date: '', cpf: '', neighborhood: '' },
   })
 
+  const [cepLookupStatus, setCepLookupStatus] = useState<'idle' | 'loading' | 'found' | 'notfound'>('idle')
+  const [cepFoundAddress, setCepFoundAddress] = useState<{ city: string; state: string } | null>(null)
+
   const studentForm = useForm<StudentFormData>({
     resolver: zodResolver(studentSchema),
-    defaultValues: { city: 'Fortaleza', state: 'CE', phone: '' },
+    defaultValues: { city: '', state: '', phone: '', cep: '' },
   })
 
   /* Location suggestions */
@@ -433,6 +439,33 @@ function OnboardingContent() {
     }
   }
 
+  /* CEP lookup */
+  async function handleCepChange(raw: string) {
+    const clean = raw.replace(/\D/g, '')
+    const masked = clean.length > 5 ? `${clean.slice(0, 5)}-${clean.slice(5, 8)}` : clean
+    studentForm.setValue('cep', masked, { shouldValidate: false })
+    if (clean.length !== 8) {
+      if (cepLookupStatus !== 'idle') setCepLookupStatus('idle')
+      setCepFoundAddress(null)
+      studentForm.setValue('city', '', { shouldValidate: false })
+      studentForm.setValue('state', '', { shouldValidate: false })
+      return
+    }
+    setCepLookupStatus('loading')
+    const result = await lookupCepAction(clean)
+    if (result) {
+      studentForm.setValue('city', result.city, { shouldValidate: true })
+      studentForm.setValue('state', result.state, { shouldValidate: true })
+      setCepFoundAddress({ city: result.city, state: result.state })
+      setCepLookupStatus('found')
+    } else {
+      studentForm.setValue('city', '', { shouldValidate: true })
+      studentForm.setValue('state', '', { shouldValidate: true })
+      setCepFoundAddress(null)
+      setCepLookupStatus('notfound')
+    }
+  }
+
   /* Student submit */
   async function handleStudentSubmit(values: StudentFormData) {
     setLoading(true)
@@ -445,7 +478,7 @@ function OnboardingContent() {
       await updateProfilesUpsert(user.id, { full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Aluno', phone: values.phone, email: user.email || '', role: 'student' })
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const studentPayload: any = { id: user.id, profile_id: user.id, city: values.city, state: values.state }
+      const studentPayload: any = { id: user.id, profile_id: user.id, city: values.city, state: values.state, cep: values.cep, goal: values.goal }
       const upsertStudent = async (payload: Record<string, unknown>) =>
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (supabase.from('students') as any).upsert(payload)
@@ -951,11 +984,11 @@ function OnboardingContent() {
   /* ── Student layout (auth card) ── */
   return (
     <>
-      <h1 className="mb-1 text-xl font-extrabold text-white"
+      <h1 className="mb-1 text-xl font-extrabold text-gray-900"
         style={{ fontFamily: 'Syne, system-ui, sans-serif' }}>
         Complete seu perfil
       </h1>
-      <p className="mb-6 text-sm text-[#9ca3af]">
+      <p className="mb-6 text-sm text-gray-500">
         Só mais algumas informações para terminar seu cadastro.
       </p>
 
@@ -963,6 +996,32 @@ function OnboardingContent() {
         <StudentDoneScreen onContinue={() => router.push('/instrutores')} />
       ) : (
         <form onSubmit={studentForm.handleSubmit(handleStudentSubmit)} className="space-y-4">
+          <div>
+            <p className="mb-2 text-sm font-semibold text-gray-700">Qual é o seu objetivo?</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {([
+                { value: 'exam', label: 'Tirar a CNH', desc: 'Preparação para o exame' },
+                { value: 'fear', label: 'Já tenho CNH e quero perder o medo', desc: 'Aulas para ganhar confiança' },
+              ] as const).map(({ value, label, desc }) => {
+                const selected = studentForm.watch('goal') === value
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => studentForm.setValue('goal', value, { shouldValidate: true })}
+                    className={`flex flex-col items-start rounded-xl border-2 px-4 py-3 text-left transition-colors ${selected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300'}`}
+                  >
+                    <span className={`text-sm font-semibold ${selected ? 'text-blue-700' : 'text-gray-800'}`}>{label}</span>
+                    <span className="text-xs text-gray-500">{desc}</span>
+                  </button>
+                )
+              })}
+            </div>
+            {studentForm.formState.errors.goal && (
+              <p className="mt-1 text-xs text-red-500">{studentForm.formState.errors.goal.message}</p>
+            )}
+          </div>
+
           <Field label="Telefone" error={studentForm.formState.errors.phone?.message}>
             <input
               {...studentForm.register('phone')}
@@ -973,22 +1032,36 @@ function OnboardingContent() {
                 studentForm.setValue('phone', masked, { shouldDirty: true, shouldValidate: true })
                 e.target.value = masked
               }}
-              className={inputClass}
+              className={inputClassLight}
             />
           </Field>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Cidade" error={studentForm.formState.errors.city?.message}>
-              <input {...studentForm.register('city')} className={inputClass} />
-            </Field>
-            <Field label="Estado" error={studentForm.formState.errors.state?.message}>
-              <select {...studentForm.register('state')} className={`${inputClass} bg-[#16161d]`}>
-                {BRAZIL_STATES.map(state => (
-                  <option key={state.value} value={state.value}>{state.value}</option>
-                ))}
-              </select>
-            </Field>
-          </div>
+          <Field label="CEP" error={studentForm.formState.errors.cep?.message || studentForm.formState.errors.city?.message}>
+            <div className="relative">
+              <input
+                value={studentForm.watch('cep') || ''}
+                onChange={e => handleCepChange(e.target.value)}
+                placeholder="00000-000"
+                maxLength={9}
+                inputMode="numeric"
+                className={inputClassLight}
+              />
+              {cepLookupStatus === 'loading' && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-blue-500" />
+              )}
+              {cepLookupStatus === 'found' && (
+                <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+              )}
+            </div>
+            {cepLookupStatus === 'found' && cepFoundAddress && (
+              <p className="mt-1.5 text-xs text-green-600 font-medium">
+                {cepFoundAddress.city} — {cepFoundAddress.state}
+              </p>
+            )}
+            {cepLookupStatus === 'notfound' && (
+              <p className="mt-1 text-xs text-red-500">CEP não encontrado. Verifique e tente novamente.</p>
+            )}
+          </Field>
 
           <button
             type="submit"

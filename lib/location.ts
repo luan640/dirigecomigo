@@ -127,6 +127,22 @@ export async function searchLocationSuggestionsAction(query: string) {
   )
 }
 
+export async function lookupCepAction(cep: string): Promise<{ city: string; state: string; neighborhood: string; latitude: number; longitude: number } | null> {
+  const clean = cep.replace(/\D/g, '')
+  if (clean.length !== 8) return null
+  const formatted = `${clean.slice(0, 5)}-${clean.slice(5)}`
+  const results = await searchLocationSuggestionsAction(formatted)
+  if (!results.length) return null
+  const first = results[0]
+  return {
+    city: first.localidade,
+    state: first.uf,
+    neighborhood: first.bairro,
+    latitude: first.latitude,
+    longitude: first.longitude,
+  }
+}
+
 export async function geocodeCepAction(query: string) {
   const normalizedQuery = String(query || '').trim()
 

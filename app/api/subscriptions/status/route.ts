@@ -5,6 +5,8 @@ import {
   getMercadoPagoSubscriptionClient,
   syncPreapprovalToSubscription,
 } from '@/lib/payments/mercadoPagoSubscription'
+import { normalizePlatformPricingSettings } from '@/lib/platformPricing'
+import { PLATFORM_CONFIG } from '@/constants/pricing'
 
 type SubscriptionStatusRow = {
   amount?: number | null
@@ -33,6 +35,14 @@ export async function GET() {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
+    const { data: settingsRow } = await db
+      .from('platform_settings')
+      .select('subscription_price')
+      .eq('key', 'default')
+      .maybeSingle()
+    const subscriptionPrice = normalizePlatformPricingSettings(settingsRow).subscription_price
+
+
     try {
       if (data?.provider_sub_id) {
         const client = getMercadoPagoSubscriptionClient()
@@ -45,7 +55,7 @@ export async function GET() {
         })
 
         if (!synced.error) {
-          return NextResponse.json({ data: synced.data || data, error: null })
+          return NextResponse.json({ data: synced.data || data, subscriptionPrice, error: null })
         }
       }
 
@@ -64,7 +74,7 @@ export async function GET() {
           })
 
           if (!synced.error) {
-            return NextResponse.json({ data: synced.data || data, error: null })
+            return NextResponse.json({ data: synced.data || data, subscriptionPrice, error: null })
           }
         }
       }
@@ -72,7 +82,7 @@ export async function GET() {
       // Preserve local state if Mercado Pago is unavailable.
     }
 
-    return NextResponse.json({ data: data || null, error: null })
+    return NextResponse.json({ data: data || null, subscriptionPrice, error: null })
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message || 'Erro ao buscar assinatura.' }, { status: 500 })
   }

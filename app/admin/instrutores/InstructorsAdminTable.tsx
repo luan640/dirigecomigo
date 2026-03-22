@@ -6,6 +6,27 @@ import { Loader2, X, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 import type { InstructorAdminRow } from './page'
 
+function StorageImageCard({ url, label }: { url: string; label: string }) {
+  return (
+    <div className="rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-gray-50 px-3 py-2 flex items-center justify-between border-b border-gray-200">
+        <p className="text-xs font-semibold text-gray-600">{label}</p>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:underline"
+        >
+          <ExternalLink className="h-3 w-3" />
+          Abrir
+        </a>
+      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={url} alt={label} className="w-full max-h-56 object-contain bg-white p-2" />
+    </div>
+  )
+}
+
 type Props = {
   initialRows: InstructorAdminRow[]
 }
@@ -32,19 +53,21 @@ function formatCategories(value?: string[] | string) {
   return '-'
 }
 
+const LESSON_TYPE_LABELS: Record<string, string> = {
+  exam_prep: 'Preparação para exame',
+  fear_driving: 'Medo de dirigir',
+}
+
 function formatLessonTypes(value?: string[] | string) {
   if (!value) return '-'
-  if (Array.isArray(value)) return value.join(', ') || '-'
-  if (typeof value === 'string') {
-    try {
-      const parsed = JSON.parse(value)
-      if (Array.isArray(parsed)) return parsed.join(', ') || '-'
-    } catch {
-      // not JSON
-    }
-    return value || '-'
-  }
-  return '-'
+  const arr = Array.isArray(value)
+    ? value
+    : (() => { try { const p = JSON.parse(value); return Array.isArray(p) ? p : [value] } catch { return [value] } })()
+  return arr.map((t: string) => LESSON_TYPE_LABELS[t] ?? t).join(', ') || '-'
+}
+
+function fmt(v?: number) {
+  return v != null ? `R$ ${v.toFixed(2)}` : undefined
 }
 
 function StatusBadge({ status, isActive }: { status?: string; isActive?: boolean }) {
@@ -206,7 +229,23 @@ export default function InstructorsAdminTable({ initialRows }: Props) {
                   const isLoading = loadingId === row.id
                   return (
                     <tr key={row.id} className="border-t border-gray-100">
-                      <td className="px-4 py-3 font-medium text-gray-900">{row.full_name || 'Sem nome'}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2.5">
+                          {row.avatar_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={row.avatar_url}
+                              alt=""
+                              className="h-8 w-8 rounded-full object-cover shrink-0 border border-gray-200"
+                            />
+                          ) : (
+                            <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0 text-xs font-bold text-gray-400">
+                              {(row.full_name || '?').charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <span className="font-medium text-gray-900">{row.full_name || 'Sem nome'}</span>
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-gray-600">{row.email || '-'}</td>
                       <td className="px-4 py-3 text-gray-600">{row.phone || '-'}</td>
                       <td className="px-4 py-3 text-gray-600 font-mono text-xs">{row.cpf || '-'}</td>
@@ -348,37 +387,39 @@ function InstructorModal({
             <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Dados Profissionais</h4>
             <div className="grid grid-cols-2 gap-4">
               <Field label="Categorias" value={formatCategories(row.categories)} />
-              <Field
-                label="Preco por Aula"
-                value={row.price_per_lesson != null ? `R$ ${Number(row.price_per_lesson).toFixed(2)}` : undefined}
-              />
+              <Field label="Aceita carro do aluno" value={row.accepts_student_car === true ? 'Sim' : row.accepts_student_car === false ? 'Nao' : undefined} />
               <Field label="Tipos de Aula" value={formatLessonTypes(row.lesson_types)} />
-              <Field
-                label="Aceita carro do aluno"
-                value={row.accepts_student_car === true ? 'Sim' : row.accepts_student_car === false ? 'Nao' : undefined}
-              />
+            </div>
+
+            <div className="mt-4">
+              <p className="text-xs text-gray-500 mb-2">Preço por aula</p>
+              <div className="grid grid-cols-3 gap-2">
+                {(['A','B','C','D','E'] as const).map(cat => {
+                  const cats = row.categories
+                  const hasCategory = !cats ? false
+                    : Array.isArray(cats) ? cats.includes(cat)
+                    : (() => { try { const p = JSON.parse(cats as string); return Array.isArray(p) ? p.includes(cat) : false } catch { return false } })()
+                  if (!hasCategory) return null
+                  const key = `price_per_lesson_${cat.toLowerCase()}` as keyof typeof row
+                  const specific = row[key] as number | undefined
+                  const price = specific ?? row.price_per_lesson
+                  return (
+                    <div key={cat} className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-center">
+                      <p className="text-xs font-bold text-gray-500">Cat. {cat}</p>
+                      <p className="text-sm font-bold text-gray-900 mt-0.5">{fmt(price) ?? '-'}</p>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
 
-          {row.cnh_photo_url && (
+          {(row.avatar_url || row.cnh_photo_url) && (
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Foto CNH</h4>
-              <a
-                href={row.cnh_photo_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-gray-50 transition-colors"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Ver foto da CNH
-              </a>
-              <div className="mt-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={row.cnh_photo_url}
-                  alt="Foto CNH"
-                  className="max-h-48 rounded-xl border border-gray-200 object-contain"
-                />
+              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Imagens enviadas</h4>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {row.avatar_url && <StorageImageCard url={row.avatar_url} label="Foto de perfil" />}
+                {row.cnh_photo_url && <StorageImageCard url={row.cnh_photo_url} label="Foto da CNH" />}
               </div>
             </div>
           )}

@@ -4,13 +4,12 @@ import { Suspense, useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { ArrowLeft, Calendar, CheckCircle2, Clock, Copy, CreditCard, Loader2, Lock, QrCode } from 'lucide-react'
+import { ArrowLeft, Calendar, CheckCircle2, Clock, Copy, CreditCard, Loader2, QrCode } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
-import MercadoPagoCardBrick from '@/components/ui/MercadoPagoCardBrick'
 import { paymentService } from '@/services/paymentService'
 import { formatCurrency } from '@/utils/format'
 import { applyAmountToPaymentSplit, calculatePaymentSplit } from '@/utils/payment'
@@ -142,6 +141,47 @@ function CheckoutContent() {
       mounted = false
     }
   }, [])
+  // Handle return from Mercado Pago Checkout Pro
+  useEffect(() => {
+    const mpReturn = searchParams.get('mp_return')
+    const mpPaymentId = searchParams.get('payment_id')
+    if (!mpReturn || !mpPaymentId) return
+
+    if (mpReturn === 'failure') {
+      toast.error('Pagamento não aprovado. Tente novamente.')
+      return
+    }
+
+    if (mpReturn === 'pending') {
+      toast.info('Pagamento pendente. Aguarde a confirmação do Mercado Pago.')
+      return
+    }
+
+    if (mpReturn === 'approved') {
+      const run = async () => {
+        setLoading(true)
+        try {
+          const intent: PaymentIntent = {
+            id: mpPaymentId,
+            amount: 0,
+            currency: 'BRL',
+            status: 'paid',
+            provider: 'mercadopago',
+            provider_reference: mpPaymentId,
+          }
+          await createBookingAfterPayment(intent)
+          setStep('success')
+        } catch (err) {
+          toast.error((err as Error).message || 'Erro ao confirmar reserva.')
+        } finally {
+          setLoading(false)
+        }
+      }
+      void run()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const ensureStudentPhone = () => {
     if (customerPhone.trim()) return true
 
@@ -216,7 +256,7 @@ function CheckoutContent() {
   }, [id])
 
   const instructorPrice = resolveLessonPrice(instructor, categoryParam)
-  const split = calculatePaymentSplit(instructorPrice, payMethod, platformSettings)
+  const split = calculatePaymentSplit(instructorPrice, 'pix', platformSettings)
   const payableAmount = appliedCoupon?.final_amount ?? split.gross
   const payableSplit = applyAmountToPaymentSplit(split, payableAmount)
   const activeCouponCode = appliedCoupon?.code || couponCodeFromQuery
@@ -479,19 +519,54 @@ function CheckoutContent() {
     }
   }
 
-  const handleCardPaymentCreated = async (intent: PaymentIntent) => {
-    if (intent.status === 'failed') {
-      toast.error('Pagamento recusado. Verifique os dados do cartao.')
+
+  const handleCardCheckoutPro = async () => {
+    if (!customerEmail) { redirectToLogin(); return }
+    if (!ensureStudentPhone()) return
+    if (isBeforeMinAdvanceWindow()) {
+      toast.error(`Este instrutor aceita agendamento com no minimo ${minAdvanceHours}h de antecedencia.`)
       return
     }
 
-    if (intent.status !== 'paid') {
-      toast.error('O Mercado Pago nao retornou aprovacao imediata para este cartao.')
-      return
-    }
+    setLoading(true)
+    try {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+      const baseParams = new URLSearchParams()
+      if (slotId) baseParams.set('slotId', slotId)
+      if (dateStr) baseParams.set('date', dateStr)
+      if (timeStr) baseParams.set('time', timeStr)
+      if (categoryParam) baseParams.set('category', categoryParam)
+      if (activeCouponCode) baseParams.set('coupon', activeCouponCode)
 
-    await createBookingAfterPayment(intent)
-    setStep('success')
+      const successUrl = `${appUrl}/instrutor/${id}/agendar?${baseParams.toString()}&mp_return=approved`
+      const failureUrl = `${appUrl}/instrutor/${id}/agendar?${baseParams.toString()}&mp_return=failure`
+      const pendingUrl = `${appUrl}/instrutor/${id}/agendar?${baseParams.toString()}&mp_return=pending`
+
+      const res = await fetch('/api/payments/preference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: payableSplit.gross,
+          currency: 'BRL',
+          customerEmail,
+          description: `Aula com ${instructor?.name || 'Instrutor'} em ${dateStr} as ${timeStr}`,
+          successUrl,
+          failureUrl,
+          pendingUrl,
+          metadata: { slotId, date: dateStr, time: timeStr, instructorId: String(id), couponCode: activeCouponCode },
+        }),
+      })
+      const payload = await res.json()
+      if (!res.ok || !payload?.data?.init_point) {
+        toast.error(payload?.error || 'Não foi possível iniciar o checkout.')
+        return
+      }
+      window.location.href = payload.data.init_point
+    } catch {
+      toast.error('Erro ao iniciar checkout. Tente novamente.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleAdvanceToPayment = async () => {
@@ -509,12 +584,7 @@ function CheckoutContent() {
       return
     }
 
-    if (isBeforeMinAdvanceWindow()) {
-      toast.error(`Este instrutor aceita agendamento com no minimo ${minAdvanceHours}h de antecedencia.`)
-      return
-    }
-
-    setStep('payment')
+    await handleCardCheckoutPro()
   }
 
   const copyPix = () => {
@@ -662,24 +732,12 @@ function CheckoutContent() {
               <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
                 <h2 className="mb-3 font-bold text-gray-900">Resumo do pagamento</h2>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between text-gray-600">
-                    <span>Instrutor recebe</span>
-                    <span>{formatCurrency(split.instructorNet)}</span>
-                  </div>
                   {appliedCoupon && (
                     <div className="flex justify-between text-emerald-700">
                       <span>Desconto ({appliedCoupon.code})</span>
                       <span>- {formatCurrency(appliedCoupon.discount_amount)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-xs text-gray-400">
-                    <span>Taxa da plataforma ({split.platformFeeRate}%)</span>
-                    <span>{formatCurrency(payableSplit.platformFee)}</span>
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-400">
-                    <span>Taxa do {payMethod === 'pix' ? 'Pix' : 'cartao'} ({split.paymentMethodRate}%)</span>
-                    <span>{formatCurrency(payableSplit.paymentMethodFee)}</span>
-                  </div>
                   <div className="mt-2 flex justify-between border-t border-gray-100 pt-2 text-base font-extrabold text-gray-900">
                     <span>Total a pagar</span>
                     <span className="text-blue-700">{formatCurrency(payableAmount)}</span>
@@ -740,9 +798,6 @@ function CheckoutContent() {
                     <span className={`text-sm font-bold ${payMethod === 'pix' ? 'text-emerald-700' : 'text-gray-600'}`}>
                       Pix
                     </span>
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-600">
-                      + {platformSettings.platform_fee_percent + platformSettings.pix_fee_percent}% no checkout
-                    </span>
                   </button>
 
                   <button
@@ -755,7 +810,7 @@ function CheckoutContent() {
                     <span className={`text-sm font-bold ${payMethod === 'card' ? 'text-blue-700' : 'text-gray-600'}`}>
                       Cartao de credito
                     </span>
-                    <span className="text-xs font-medium text-gray-400">Mercado Pago Bricks - + {platformSettings.platform_fee_percent + platformSettings.card_fee_percent}% no checkout</span>
+                    <span className="text-xs font-medium text-gray-400">*sujeito a taxas</span>
                   </button>
                 </div>
               </div>
@@ -785,46 +840,6 @@ function CheckoutContent() {
             </div>
           )}
 
-          {step === 'payment' && payMethod === 'card' && (
-            <div className="space-y-4">
-              <h1 className="text-2xl font-extrabold text-gray-900">Pagamento com cartao</h1>
-
-              <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                <div className="mb-4 flex items-center gap-2 text-sm text-gray-500">
-                  <Lock className="h-3.5 w-3.5 text-emerald-600" />
-                  <span>Formulario seguro do Mercado Pago Checkout Bricks</span>
-                </div>
-
-                <MercadoPagoCardBrick
-                  amount={payableAmount}
-                  customerEmail={customerEmail}
-                  description={`Aula com ${instructor.name} em ${dateStr} as ${timeStr}`}
-                  metadata={{
-                    bookingId,
-                    slotId,
-                    date: dateStr,
-                    time: timeStr,
-                    instructorId: String(id),
-                    couponCode: activeCouponCode,
-                  }}
-                  onPaymentCreated={handleCardPaymentCreated}
-                />
-              </div>
-
-              <div className="flex items-center justify-between rounded-xl bg-blue-50 px-4 py-3 text-sm">
-                <span className="text-gray-600">Aula com {instructor.name} · {timeStr.slice(0, 5)}</span>
-                <span className="font-bold text-blue-700">{formatCurrency(payableAmount)}</span>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setStep('review')}
-                className="w-full rounded-xl border border-gray-200 py-3 font-semibold text-gray-700 hover:bg-gray-50"
-              >
-                Voltar
-              </button>
-            </div>
-          )}
 
           {step === 'pix' && (
             <div className="space-y-4">

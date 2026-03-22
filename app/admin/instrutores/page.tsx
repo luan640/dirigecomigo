@@ -25,6 +25,12 @@ export type InstructorAdminRow = {
   full_name?: string
   email?: string
   phone?: string
+  avatar_url?: string
+  price_per_lesson_a?: number
+  price_per_lesson_b?: number
+  price_per_lesson_c?: number
+  price_per_lesson_d?: number
+  price_per_lesson_e?: number
 }
 
 async function getAdminRole() {
@@ -50,6 +56,7 @@ function getServiceClient() {
   return createAdminClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
 }
 
+
 export default async function InstrutoresAdminPage() {
   const role = await getAdminRole()
   if (role !== 'admin') redirect('/entrar')
@@ -71,9 +78,9 @@ export default async function InstrutoresAdminPage() {
 
   const [{ data: instructors }, { data: profiles }] = await Promise.all([
     db.from('instructors').select(
-      'id,status,is_active,is_verified,created_at,neighborhood,city,state,price_per_lesson,categories,cnh_photo_url,birth_date,cpf,accepts_student_car,lesson_types'
+      'id,status,is_active,is_verified,created_at,neighborhood,city,state,price_per_lesson,price_per_lesson_a,price_per_lesson_b,price_per_lesson_c,price_per_lesson_d,price_per_lesson_e,categories,cnh_photo_url,birth_date,cpf,accepts_student_car,lesson_types'
     ).order('created_at', { ascending: false }),
-    db.from('profiles').select('id,full_name,email,phone'),
+    db.from('profiles').select('id,full_name,email,phone,avatar_url'),
   ])
 
   const instructorRows = Array.isArray(instructors) ? instructors : []
@@ -99,11 +106,18 @@ export default async function InstrutoresAdminPage() {
       cpf: inst.cpf ? String(inst.cpf) : undefined,
       accepts_student_car: typeof inst.accepts_student_car === 'boolean' ? inst.accepts_student_car : undefined,
       lesson_types: inst.lesson_types as string[] | string | undefined,
+      price_per_lesson_a: inst.price_per_lesson_a != null ? Number(inst.price_per_lesson_a) : undefined,
+      price_per_lesson_b: inst.price_per_lesson_b != null ? Number(inst.price_per_lesson_b) : undefined,
+      price_per_lesson_c: inst.price_per_lesson_c != null ? Number(inst.price_per_lesson_c) : undefined,
+      price_per_lesson_d: inst.price_per_lesson_d != null ? Number(inst.price_per_lesson_d) : undefined,
+      price_per_lesson_e: inst.price_per_lesson_e != null ? Number(inst.price_per_lesson_e) : undefined,
       full_name: prof?.full_name ? String(prof.full_name) : undefined,
       email: prof?.email ? String(prof.email) : undefined,
       phone: prof?.phone ? String(prof.phone) : undefined,
+      avatar_url: prof?.avatar_url ? String(prof.avatar_url) : undefined,
     }
   })
+
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
