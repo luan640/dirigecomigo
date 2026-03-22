@@ -42,7 +42,7 @@ const studentSchema = z.object({
   cep: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v.length === 8, 'CEP inválido — informe 8 dígitos'),
   city: z.string().min(1, 'CEP não encontrado'),
   state: z.string().min(1, 'CEP não encontrado'),
-  goal: z.enum(['exam', 'fear'], { required_error: 'Selecione seu objetivo' }),
+  goal: z.enum(['exam', 'fear'], { error: 'Selecione seu objetivo' }),
 })
 
 type InstructorFormData = z.infer<typeof instructorSchema>
