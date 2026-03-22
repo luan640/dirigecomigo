@@ -69,6 +69,8 @@ type InstructorMetaRow = {
   created_at?: string | null
 }
 
+export const dynamic = 'force-dynamic'
+
 export async function generateStaticParams() {
   return []
 }
