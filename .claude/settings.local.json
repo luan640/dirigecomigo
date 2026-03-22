@@ -26,7 +26,8 @@
       "Bash(__NEW_LINE_9465eb4f83293be6__ curl:*)",
       "Bash(__NEW_LINE_90835e64aa7cb2a9__ curl:*)",
       "Bash(ls:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(npm run:*)"
     ]
   }
 }
