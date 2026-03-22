@@ -35,6 +35,9 @@ const instructorSchema = z.object({
   }, 'Você deve ter pelo menos 18 anos'),
   cpf: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v.length === 11, 'CPF inválido — informe 11 dígitos'),
   neighborhood: z.string().min(2, 'Informe sua localização'),
+  service_mode: z.enum(['car', 'moto', 'both']).optional(),
+  price_car: z.number().nullable().optional(),
+  price_moto: z.number().nullable().optional(),
 })
 
 const studentSchema = z.object({

@@ -32,7 +32,7 @@ export default function Navbar() {
     const supabase = createClient()
 
     const loadProfile = async (userId: string, email?: string) => {
-      const { data: profile } = await supabase.from('profiles').select('full_name, role').eq('id', userId).maybeSingle()
+      const { data: profile } = await supabase.from('profiles').select('full_name, role').eq('id', userId).maybeSingle() as { data: { full_name: string | null; role: string | null } | null }
       if (profile) {
         setUser({ name: profile.full_name || email?.split('@')[0] || 'Usuário', role: (profile.role as NavUser['role']) || 'student' })
       } else {

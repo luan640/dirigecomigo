@@ -83,7 +83,7 @@ function getAdminDb() {
 async function loadInstructorProfileData(id: string) {
   const [instructors, supabase] = await Promise.all([loadPublicInstructors(), createClient()])
   const instructor = instructors.find((item) => item.id === id) || null
-  if (!instructor) return { instructor: null, reviews: [], availability: [] }
+  if (!instructor) return { instructor: null, reviews: [] as { id: string; rating: number; comment: string | null; created_at: string }[], availability: [] }
   const todayStr = getSaoPauloToday()
 
   // Use service role for bookings query to bypass RLS — needed to show occupied slots to any visitor
@@ -231,7 +231,7 @@ async function loadInstructorProfileData(id: string) {
 
   return {
     instructor,
-    reviews: [],
+    reviews: [] as { id: string; rating: number; comment: string | null; created_at: string }[],
     availability,
     memberSince: String(instructorMeta?.created_at || '').slice(0, 10) || null,
     platformSettings,
