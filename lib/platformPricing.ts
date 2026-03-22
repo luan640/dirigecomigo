@@ -4,6 +4,7 @@ export type PlatformPricingSettings = {
   platform_fee_percent: number
   pix_fee_percent: number
   card_fee_percent: number
+  subscription_price: number
 }
 
 export type PaymentMethod = 'pix' | 'card'
@@ -23,6 +24,7 @@ export const DEFAULT_PLATFORM_PRICING_SETTINGS: PlatformPricingSettings = {
   platform_fee_percent: PLATFORM_CONFIG.DEFAULT_PLATFORM_FEE_PERCENT,
   pix_fee_percent: PLATFORM_CONFIG.DEFAULT_PIX_FEE_PERCENT,
   card_fee_percent: PLATFORM_CONFIG.DEFAULT_CARD_FEE_PERCENT,
+  subscription_price: PLATFORM_CONFIG.INSTRUCTOR_SUBSCRIPTION_PRICE,
 }
 
 function roundCurrency(value: number) {
@@ -35,11 +37,18 @@ function normalizePercent(value: unknown, fallback: number) {
   return Math.min(100, Math.max(0, parsed))
 }
 
+function normalizePrice(value: unknown, fallback: number) {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback
+  return Math.round(parsed * 100) / 100
+}
+
 export function normalizePlatformPricingSettings(raw?: Partial<PlatformPricingSettings> | null): PlatformPricingSettings {
   return {
     platform_fee_percent: normalizePercent(raw?.platform_fee_percent, DEFAULT_PLATFORM_PRICING_SETTINGS.platform_fee_percent),
     pix_fee_percent: normalizePercent(raw?.pix_fee_percent, DEFAULT_PLATFORM_PRICING_SETTINGS.pix_fee_percent),
     card_fee_percent: normalizePercent(raw?.card_fee_percent, DEFAULT_PLATFORM_PRICING_SETTINGS.card_fee_percent),
+    subscription_price: normalizePrice(raw?.subscription_price, DEFAULT_PLATFORM_PRICING_SETTINGS.subscription_price),
   }
 }
 

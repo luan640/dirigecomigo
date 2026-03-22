@@ -45,7 +45,7 @@ export default function Footer() {
           </div>
 
           <div>
-            <h3 className="mb-4 font-semibold text-white" style={{ fontFamily: "'Syne', sans-serif" }}>Para Alunos</h3>
+            <h3 className="mb-4 font-semibold text-white" style={{ fontFamily: "'Clash Display', sans-serif" }}>Para Alunos</h3>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link href="/instrutores" className="transition-colors hover:text-green-400">
@@ -71,7 +71,7 @@ export default function Footer() {
           </div>
 
           <div>
-            <h3 className="mb-4 font-semibold text-white" style={{ fontFamily: "'Syne', sans-serif" }}>Para Instrutores</h3>
+            <h3 className="mb-4 font-semibold text-white" style={{ fontFamily: "'Clash Display', sans-serif" }}>Para Instrutores</h3>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link href="/#seja-instrutor" className="transition-colors hover:text-green-400">
@@ -97,7 +97,7 @@ export default function Footer() {
           </div>
 
           <div>
-            <h3 className="mb-4 font-semibold text-white" style={{ fontFamily: "'Syne', sans-serif" }}>Suporte</h3>
+            <h3 className="mb-4 font-semibold text-white" style={{ fontFamily: "'Clash Display', sans-serif" }}>Suporte</h3>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link href="/termos" className="transition-colors hover:text-green-400">

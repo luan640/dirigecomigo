@@ -2,7 +2,6 @@ import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { addDays, format } from 'date-fns'
 import { Star, MapPin, Car, CheckCircle2 } from 'lucide-react'
-import { MOCK_INSTRUCTORS, MOCK_REVIEWS, generateMockAvailability } from '@/lib/mock-data'
 import { loadPublicInstructors } from '@/lib/publicInstructors'
 import { DEFAULT_PLATFORM_PRICING_SETTINGS, normalizePlatformPricingSettings } from '@/lib/platformPricing'
 import { createClient } from '@/lib/supabase/server'
@@ -70,23 +69,10 @@ type InstructorMetaRow = {
 }
 
 export async function generateStaticParams() {
-  return MOCK_INSTRUCTORS.map((i) => ({ id: i.id }))
+  return []
 }
 
 async function loadInstructorProfileData(id: string) {
-  const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
-
-  if (demoMode) {
-    const instructor = MOCK_INSTRUCTORS.find((item) => item.id === id) || null
-    return {
-      instructor,
-      reviews: instructor ? MOCK_REVIEWS[id] || [] : [],
-      availability: instructor ? generateMockAvailability(id) : [],
-      memberSince: '2026-01-01',
-      platformSettings: DEFAULT_PLATFORM_PRICING_SETTINGS,
-    }
-  }
-
   const [instructors, supabase] = await Promise.all([loadPublicInstructors(), createClient()])
   const instructor = instructors.find((item) => item.id === id) || null
   if (!instructor) return { instructor: null, reviews: [], availability: [] }

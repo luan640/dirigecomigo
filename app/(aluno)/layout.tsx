@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
-import { LayoutDashboard, BookOpen, User, LogOut } from 'lucide-react'
+import { LayoutDashboard, BookOpen, User } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
+import LogoutButton from '@/components/layout/LogoutButton'
 
 const navItems = [
   { href: '/aluno/dashboard', label: 'Início', icon: LayoutDashboard },
@@ -29,12 +30,7 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
               </Link>
             ))}
           </nav>
-          <Link
-            href="/entrar"
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-400 hover:text-red-600 transition-colors"
-          >
-            <LogOut className="w-4 h-4" /> Sair
-          </Link>
+          <LogoutButton />
         </aside>
 
         {/* Mobile bottom nav */}

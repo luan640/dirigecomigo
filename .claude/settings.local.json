@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs sed:*)",
+      "WebFetch(domain:landingfoliocom.imgix.net)",
+      "WebFetch(domain:pixabay.com)",
+      "WebFetch(domain:cdn.pixabay.com)",
+      "Bash(curl:*)",
+      "Bash(python3 scripts/search.py \"driving instructor marketplace service local yellow green warm\" --design-system -p \"DireçãoFácil\")",
+      "Bash(py -3 scripts/search.py \"driving instructor marketplace service local yellow green warm\" --design-system -p \"DireçãoFácil\")",
+      "Bash(dir:*)",
+      "Bash(npx tsc:*)",
+      "Read(//c/Users/Luan/.claude/plugins/cache/ui-ux-pro-max-skill/ui-ux-pro-max/2.0.1/.claude/skills/ui-ux-pro-max/**)",
+      "Bash(python scripts/search.py \"dark form inputs contrast signup auth\" --domain ux -n 8)",
+      "Bash(python3 scripts/search.py \"dark form inputs contrast signup auth\" --domain ux -n 8)",
+      "Bash(xargs grep:*)",
+      "Bash(cat:*)",
+      "Bash(find C:/Users/Luan/workspace/dirigecomigo/services -name *.ts)",
+      "Bash(grep:*)",
+      "Bash(supabase --version)",
+      "Bash(SERVICE_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmdHNza3FtanVycnZoYml2c3N0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDEzMDQ3MywiZXhwIjoyMDg5NzA2NDczfQ.K4-y7h7kVAoJhv8Z5HWZg0smW78L1tInjX2d4-U5-HA\")",
+      "Bash(__NEW_LINE_88eabf5d00994eb3__ curl:*)",
+      "Bash(__NEW_LINE_e4ee7d228af00750__ curl:*)",
+      "Bash(USER_ID=\"326d2f97-61fc-48b7-9c40-ae534df14f97\")",
+      "Bash(__NEW_LINE_d0e70c43cfe2aa67__ curl:*)",
+      "Bash(__NEW_LINE_9465eb4f83293be6__ curl:*)",
+      "Bash(__NEW_LINE_90835e64aa7cb2a9__ curl:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}

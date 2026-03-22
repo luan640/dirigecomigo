@@ -1,40 +1,33 @@
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import HeroSection from '@/components/landing/HeroSection'
-import MarqueeSection from '@/components/landing/MarqueeSection'
+import BenefitsSection from '@/components/landing/BenefitsSection'
 import InstructorCarousel from '@/components/landing/InstructorCarousel'
 import SearchSection from '@/components/landing/SearchSection'
-import BenefitsSection from '@/components/landing/BenefitsSection'
-import HowItWorks from '@/components/landing/HowItWorks'
-import InstructorCTA from '@/components/landing/InstructorCTA'
+import TestimonialsSection from '@/components/landing/TestimonialsSection'
 import FinalCTA from '@/components/landing/FinalCTA'
 import AuthCodeHandler from './AuthCodeHandler'
 import { loadPublicInstructors } from '@/lib/publicInstructors'
-import { MOCK_INSTRUCTORS } from '@/lib/mock-data'
 import type { InstructorCard } from '@/types'
 
 async function loadHomeInstructors(): Promise<InstructorCard[]> {
-  const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
-  if (demoMode) return MOCK_INSTRUCTORS
   return loadPublicInstructors()
 }
 
 export default async function HomePage() {
   const instructors = await loadHomeInstructors()
-  const list = instructors.length ? instructors : MOCK_INSTRUCTORS
+  const list = instructors
 
   return (
     <>
       <AuthCodeHandler />
       <Navbar />
-      <main style={{ background: 'var(--land-bg)' }} className="overflow-hidden">
+      <main className="overflow-hidden">
         <HeroSection />
-        <MarqueeSection />
+        <BenefitsSection />
         <InstructorCarousel instructors={list} />
         <SearchSection instructors={list} />
-        <BenefitsSection />
-        <HowItWorks />
-        <InstructorCTA />
+        <TestimonialsSection />
         <FinalCTA />
       </main>
       <Footer />

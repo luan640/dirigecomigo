@@ -6,12 +6,12 @@ import {
   Clock4,
   CreditCard,
   LayoutDashboard,
-  LogOut,
   User,
   Wallet,
 } from 'lucide-react'
 
 import Navbar from '@/components/layout/Navbar'
+import LogoutButton from '@/components/layout/LogoutButton'
 import { findLatestMercadoPagoPreapproval, syncPreapprovalToSubscription } from '@/lib/payments/mercadoPagoSubscription'
 
 const navItems = [
@@ -109,12 +109,7 @@ export default async function PainelLayout({ children }: { children: ReactNode }
               )
             })}
           </nav>
-          <Link
-            href="/entrar"
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-400 transition-colors hover:text-red-600"
-          >
-            <LogOut className="h-4 w-4" /> Sair
-          </Link>
+          <LogoutButton />
         </aside>
 
         <nav className="fixed bottom-0 left-0 right-0 z-40 flex overflow-x-auto border-t border-gray-100 bg-white md:hidden">

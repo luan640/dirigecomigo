@@ -2,9 +2,9 @@ import { addDays, addMinutes } from 'date-fns'
 import { NextResponse } from 'next/server'
 
 import { PLATFORM_CONFIG } from '@/constants/pricing'
+import { normalizePlatformPricingSettings } from '@/lib/platformPricing'
 import {
   findLatestMercadoPagoPreapproval,
-  getMercadoPagoPlanId,
   getMercadoPagoSubscriptionClient,
   mapPreapprovalStatus,
   syncPreapprovalToSubscription,
@@ -117,37 +117,36 @@ export async function POST(req: Request) {
       }
     }
 
+    // Buscar preço da assinatura do banco (configurável pelo admin)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: settingsRow } = await (supabase as any)
+      .from('platform_settings')
+      .select('subscription_price')
+      .eq('key', 'default')
+      .maybeSingle()
+    const subscriptionPrice = normalizePlatformPricingSettings(settingsRow).subscription_price
+
     const client = getMercadoPagoSubscriptionClient()
     const backUrl = new URL('/painel/assinatura?checkout=success', `${appUrl.replace(/\/$/, '')}/`).toString()
-    const planId = getMercadoPagoPlanId()
-    const reason = 'DirecaoFacil Instrutor - Assinatura Mensal'
 
-    const payload = planId
-      ? {
-          preapproval_plan_id: planId,
-          payer_email: user.email,
-          external_reference: user.id,
-          back_url: backUrl,
-          reason,
-          status: 'pending',
-        }
-      : {
-          payer_email: user.email,
-          external_reference: user.id,
-          back_url: backUrl,
-          reason,
-          status: 'pending',
-          auto_recurring: {
-            frequency: 1,
-            frequency_type: 'months',
-            transaction_amount: PLATFORM_CONFIG.INSTRUCTOR_SUBSCRIPTION_PRICE,
-            currency_id: 'BRL',
-            start_date: addMinutes(new Date(), 10).toISOString(),
-          },
-        }
-
+    // Fluxo de redirect (init_point): o usuário informa o cartão no checkout do MP.
+    // preapproval_plan_id + card_token_id seria necessário apenas para cobrança direta,
+    // o que não se aplica aqui — usamos sempre auto_recurring com status pending.
     const preapproval = await client.create({
-      body: payload,
+      body: {
+        payer_email: user.email,
+        external_reference: user.id,
+        back_url: backUrl,
+        reason: 'DirecaoFacil Instrutor - Assinatura Mensal',
+        status: 'pending',
+        auto_recurring: {
+          frequency: 1,
+          frequency_type: 'months',
+          transaction_amount: subscriptionPrice,
+          currency_id: 'BRL',
+          start_date: addMinutes(new Date(), 10).toISOString(),
+        },
+      },
     })
 
     return NextResponse.json({

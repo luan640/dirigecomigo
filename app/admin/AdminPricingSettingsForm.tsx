@@ -14,6 +14,7 @@ export default function AdminPricingSettingsForm({ initialSettings }: Props) {
   const [platformFee, setPlatformFee] = useState(String(initialSettings.platform_fee_percent))
   const [pixFee, setPixFee] = useState(String(initialSettings.pix_fee_percent))
   const [cardFee, setCardFee] = useState(String(initialSettings.card_fee_percent))
+  const [subscriptionPrice, setSubscriptionPrice] = useState(String(initialSettings.subscription_price))
   const [saving, setSaving] = useState(false)
 
   const previewNet = 100
@@ -33,6 +34,7 @@ export default function AdminPricingSettingsForm({ initialSettings }: Props) {
           platform_fee_percent: Number(platformFee),
           pix_fee_percent: Number(pixFee),
           card_fee_percent: Number(cardFee),
+          subscription_price: Number(subscriptionPrice),
         }),
       })
 
@@ -44,6 +46,7 @@ export default function AdminPricingSettingsForm({ initialSettings }: Props) {
       setPlatformFee(String(payload.data.platform_fee_percent))
       setPixFee(String(payload.data.pix_fee_percent))
       setCardFee(String(payload.data.card_fee_percent))
+      setSubscriptionPrice(String(payload.data.subscription_price))
       toast.success('Configuracao salva.')
     } catch (err) {
       toast.error((err as Error).message || 'Nao foi possivel salvar a configuracao.')
@@ -53,15 +56,41 @@ export default function AdminPricingSettingsForm({ initialSettings }: Props) {
   }
 
   return (
-    <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+    <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm space-y-6">
       <div>
-        <h2 className="text-lg font-bold text-gray-900">Preco final das aulas</h2>
+        <h2 className="text-lg font-bold text-gray-900">Configurações de preço</h2>
         <p className="mt-1 text-sm text-gray-500">
-          O aluno paga: valor do instrutor + percentual da plataforma + taxa do Pix ou do cartao.
+          Controle o valor da assinatura mensal dos instrutores e as taxas cobradas sobre as aulas.
         </p>
       </div>
 
-      <div className="mt-4 grid gap-4 md:grid-cols-3">
+      {/* Assinatura */}
+      <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-blue-700">
+          Assinatura mensal do instrutor (R$)
+        </label>
+        <div className="flex items-center gap-3 mt-2">
+          <input
+            value={subscriptionPrice}
+            onChange={e => setSubscriptionPrice(e.target.value)}
+            type="number"
+            min={1}
+            step={0.01}
+            className="w-40 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p className="text-sm text-blue-700">
+            Cobrado mensalmente via Mercado Pago ao ativar a assinatura.
+          </p>
+        </div>
+      </div>
+
+      {/* Taxas das aulas */}
+      <div>
+        <p className="text-sm font-semibold text-gray-700 mb-3">Taxas sobre aulas avulsas</p>
+        <p className="text-xs text-gray-500 mb-4">
+          O aluno paga: valor do instrutor + percentual da plataforma + taxa do Pix ou do cartao.
+        </p>
+      <div className="grid gap-4 md:grid-cols-3">
         <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-700">
             Percentual da plataforma (%)
@@ -115,6 +144,7 @@ export default function AdminPricingSettingsForm({ initialSettings }: Props) {
             Se o instrutor quiser receber {formatCurrency(previewNet)}, o aluno paga {formatCurrency(cardPreview)} no cartao.
           </p>
         </div>
+      </div>
       </div>
 
       <button

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowRight, CheckCircle2, Sparkles } from 'lucide-react'
+import { ArrowRight, CheckCircle2 } from 'lucide-react'
 import { PLATFORM_CONFIG } from '@/constants/pricing'
 import { formatCurrency } from '@/utils/format'
 import { useEffect, useRef, useState } from 'react'
@@ -32,50 +32,33 @@ export default function InstructorCTA() {
       id="seja-instrutor"
       ref={ref}
       className="relative py-28 overflow-hidden"
-      style={{ background: 'var(--land-surface)' }}
+      style={{ background: '#F9A800' }}
     >
-      {/* Background decorations */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-0 right-0 h-px"
-          style={{ background: 'linear-gradient(90deg, transparent, rgba(33,166,55,0.4), transparent)' }} />
-        <div className="absolute bottom-0 left-0 right-0 h-px"
-          style={{ background: 'linear-gradient(90deg, transparent, rgba(246,196,0,0.3), transparent)' }} />
-        <div className="absolute right-0 top-0 w-[600px] h-[600px] rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle at right top, rgba(33,166,55,0.08), transparent 60%)' }} />
-        <div className="absolute left-0 bottom-0 w-[500px] h-[500px] rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle at left bottom, rgba(33,166,55,0.07), transparent 60%)' }} />
-        {/* Subtle dot grid */}
-        <div className="absolute inset-0 opacity-30"
-          style={{
-            backgroundImage: 'radial-gradient(circle, rgba(33,166,55,0.18) 1px, transparent 1px)',
-            backgroundSize: '40px 40px',
-          }} />
-      </div>
+      {/* Dot pattern */}
+      <div className="absolute inset-0 hero-dots opacity-30 pointer-events-none" />
 
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 items-center gap-16 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-center gap-14 lg:grid-cols-2">
 
           {/* Left — Text */}
           <div
             className="transition-all duration-700"
             style={{ opacity: visible ? 1 : 0, transform: visible ? 'translateX(0)' : 'translateX(-40px)' }}
           >
-            <span className="mb-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-widest"
-              style={{ background: 'rgba(33,166,55,0.12)', color: '#21a637', border: '1px solid rgba(33,166,55,0.25)' }}>
-              <Sparkles className="h-3.5 w-3.5" />
+            <p className="text-xs font-bold uppercase tracking-widest mb-6" style={{ color: '#1B5E20' }}>
               Para instrutores
-            </span>
+            </p>
 
-            <h2 className="mb-5 text-4xl font-black leading-tight text-white md:text-5xl"
-              style={{ fontFamily: "'Syne', sans-serif" }}>
+            <h2 className="mb-5 text-4xl font-black leading-tight md:text-5xl"
+              style={{ fontFamily: "'Clash Display', sans-serif", color: '#0D1A0E' }}>
               Expanda seus alunos<br />
-              <span className="gradient-text">com o DirigeComigo</span>
+              <span style={{ color: '#1B5E20' }}>com o Direção Fácil</span>
             </h2>
 
-            <p className="mb-8 text-lg leading-relaxed" style={{ color: 'var(--land-muted)' }}>
+            <p className="mb-8 text-lg leading-relaxed" style={{ color: 'rgba(13,26,14,0.7)' }}>
               Cadastre-se como instrutor parceiro e conecte-se com alunos prontos para aprender em Fortaleza.
               Por apenas{' '}
-              <strong className="text-white">
+              <strong style={{ color: '#1B5E20' }}>
                 {formatCurrency(PLATFORM_CONFIG.INSTRUCTOR_SUBSCRIPTION_PRICE)}/mês
               </strong>
               , tenha acesso completo à plataforma.
@@ -89,19 +72,16 @@ export default function InstructorCTA() {
                     transform: visible ? 'translateX(0)' : 'translateX(-20px)',
                     transition: `all 0.5s ease ${0.1 + i * 0.08}s`,
                   }}>
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-400" />
-                  <span className="text-sm" style={{ color: 'var(--land-muted)' }}>{benefit}</span>
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0" style={{ color: '#1B5E20' }} />
+                  <span className="text-sm font-medium" style={{ color: 'rgba(13,26,14,0.75)' }}>{benefit}</span>
                 </li>
               ))}
             </ul>
 
             <Link
               href="/cadastro?role=instructor"
-              className="group inline-flex items-center gap-2.5 rounded-2xl px-8 py-4 font-bold text-black transition-all duration-300 hover:-translate-y-0.5"
-              style={{
-                background: 'linear-gradient(135deg, #21a637, #178a2e)',
-                boxShadow: '0 0 32px rgba(33,166,55,0.35), 0 8px 24px rgba(33,166,55,0.2)',
-              }}
+              className="group inline-flex items-center gap-2.5 px-8 py-4 font-bold text-white transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+              style={{ background: '#1B5E20', borderRadius: '6px' }}
             >
               Cadastrar meu perfil
               <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
@@ -118,61 +98,55 @@ export default function InstructorCTA() {
             }}
           >
             <div
-              className="relative w-full max-w-sm rounded-3xl p-8"
+              className="relative w-full max-w-sm p-8 bg-white"
               style={{
-                background: 'rgba(2,13,4,0.9)',
-                border: '1px solid rgba(33,166,55,0.25)',
-                backdropFilter: 'blur(20px)',
-                boxShadow: '0 0 60px rgba(33,166,55,0.1), 0 32px 64px rgba(0,0,0,0.4)',
+                border: '1px solid rgba(27,94,32,0.15)',
+                boxShadow: '0 8px 48px rgba(27,94,32,0.15)',
               }}
             >
-              {/* Top rainbow bar */}
-              <div className="absolute left-0 right-0 top-0 h-1 rounded-t-3xl"
-                style={{ background: 'linear-gradient(90deg, #178a2e, #21a637, #f6c400)' }} />
+              {/* Top accent bar */}
+              <div className="absolute left-0 right-0 top-0 h-1"
+                style={{ background: '#1B5E20' }} />
 
-              <div className="mb-6 pt-2 text-center">
-                <p className="mb-2 text-sm font-medium" style={{ color: 'var(--land-muted)' }}>Assinatura mensal</p>
+              <div className="mb-6 pt-3 text-center">
+                <p className="mb-2 text-sm font-medium" style={{ color: '#5A7A60' }}>Assinatura mensal</p>
                 <div className="flex items-end justify-center gap-1">
-                  <span className="text-6xl font-black" style={{ color: '#21a637', fontFamily: "'Syne', sans-serif" }}>
+                  <span className="text-6xl font-black" style={{ color: '#1B5E20', fontFamily: "'Clash Display', sans-serif" }}>
                     R$15
                   </span>
-                  <span className="mb-2 text-sm" style={{ color: 'var(--land-muted)' }}>/mês</span>
+                  <span className="mb-2 text-sm" style={{ color: '#5A7A60' }}>/mês</span>
                 </div>
-                <p className="mt-1 text-xs" style={{ color: 'var(--land-muted)' }}>Cancele quando quiser</p>
+                <p className="mt-1 text-xs" style={{ color: '#5A7A60' }}>Cancele quando quiser</p>
               </div>
 
               {/* Simulation box */}
-              <div className="mb-6 rounded-2xl p-5"
-                style={{ background: 'rgba(246,196,0,0.06)', border: '1px solid rgba(246,196,0,0.15)' }}>
-                <p className="mb-3 text-sm font-bold text-white">Simulação por aula</p>
+              <div className="mb-6 p-5" style={{ background: '#E8F5E9', border: '1px solid rgba(27,94,32,0.12)' }}>
+                <p className="mb-3 text-sm font-bold" style={{ color: '#0D1A0E' }}>Simulação por aula</p>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span style={{ color: 'var(--land-muted)' }}>Valor da aula</span>
-                    <span className="font-semibold text-white">R$100</span>
+                    <span style={{ color: '#5A7A60' }}>Valor da aula</span>
+                    <span className="font-semibold" style={{ color: '#0D1A0E' }}>R$100</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span style={{ color: 'var(--land-muted)' }}>Taxa da plataforma (8%)</span>
-                    <span className="font-semibold text-red-400">− R$8</span>
+                    <span style={{ color: '#5A7A60' }}>Taxa da plataforma (8%)</span>
+                    <span className="font-semibold text-red-500">− R$8</span>
                   </div>
-                  <div className="h-px my-2" style={{ background: 'rgba(246,196,0,0.2)' }} />
+                  <div className="h-px my-2" style={{ background: 'rgba(27,94,32,0.15)' }} />
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-white">Valor cobrado</span>
-                    <span className="text-lg font-black text-green-400">R$108</span>
+                    <span className="text-sm font-bold" style={{ color: '#0D1A0E' }}>Valor cobrado</span>
+                    <span className="text-lg font-black" style={{ color: '#1B5E20' }}>R$108</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-white">Você recebe</span>
-                    <span className="text-lg font-black text-green-400">R$100</span>
+                    <span className="text-sm font-bold" style={{ color: '#0D1A0E' }}>Você recebe</span>
+                    <span className="text-lg font-black" style={{ color: '#1B5E20' }}>R$100</span>
                   </div>
                 </div>
               </div>
 
               <Link
                 href="/cadastro?role=instructor"
-                className="block w-full rounded-2xl px-4 py-4 text-center font-bold text-black transition-all duration-300 hover:-translate-y-0.5"
-                style={{
-                  background: 'linear-gradient(135deg, #21a637, #178a2e)',
-                  boxShadow: '0 0 24px rgba(33,166,55,0.35)',
-                }}
+                className="block w-full px-4 py-4 text-center font-bold text-white transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
+                style={{ background: '#1B5E20', borderRadius: '6px' }}
               >
                 Começar agora
               </Link>

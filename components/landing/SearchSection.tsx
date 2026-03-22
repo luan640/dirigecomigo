@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { MapPin, Search, X, Navigation } from 'lucide-react'
+import { MapPin, Search, X } from 'lucide-react'
 
 import InstructorMap from '@/components/map/InstructorMap'
 import { type AddressSuggestion, searchLocationSuggestionsAction } from '@/lib/location'
@@ -66,10 +66,7 @@ export default function SearchSection({ instructors }: SearchSectionProps) {
       router.push('/instrutores')
       return
     }
-
-    if (!selectedAddress || !selectedCoordinates) {
-      return
-    }
+    if (!selectedAddress || !selectedCoordinates) return
 
     const params = new URLSearchParams({
       neighborhood: selectedAddress.bairro,
@@ -78,7 +75,6 @@ export default function SearchSection({ instructors }: SearchSectionProps) {
       latitude: String(selectedCoordinates.latitude),
       longitude: String(selectedCoordinates.longitude),
     })
-
     router.push(`/instrutores?${params.toString()}`)
   }
 
@@ -86,110 +82,144 @@ export default function SearchSection({ instructors }: SearchSectionProps) {
     setQuery(address.bairro || address.logradouro || address.localidade)
     setSuggestions([])
     setSelectedAddress(address)
-    setSelectedCoordinates({
-      latitude: address.latitude,
-      longitude: address.longitude,
-    })
+    setSelectedCoordinates({ latitude: address.latitude, longitude: address.longitude })
   }
 
+  // Show first 3 instructors with known location in the left panel
+  const featuredInstructors = instructors
+    .filter((i) => i.latitude && i.longitude)
+    .slice(0, 3)
+
   return (
-    <section className="py-24 relative overflow-hidden" style={{ background: 'var(--land-bg)' }}>
-      {/* Top separator glow */}
-      <div className="absolute top-0 left-0 right-0 h-px"
-        style={{ background: 'linear-gradient(90deg, transparent, rgba(246,196,0,0.3), transparent)' }} />
+    <section className="py-24" style={{ background: '#FEFCF5' }}>
+      <div className="max-w-7xl mx-auto px-6">
 
-      {/* Background glow */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(23,180,74,0.04) 0%, transparent 60%)' }} />
-      </div>
-
-      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-10 text-center">
-          <span className="mb-5 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-widest"
-            style={{ background: 'rgba(23,180,74,0.1)', color: '#17b44a', border: '1px solid rgba(23,180,74,0.25)' }}>
-            <Navigation className="w-3.5 h-3.5" />
+        <div className="mb-12 text-center">
+          <p className="text-sm font-bold uppercase tracking-widest mb-3" style={{ color: '#1B5E20' }}>
             Mapa ao vivo
-          </span>
-          <h2 className="text-4xl sm:text-5xl font-black text-white" style={{ fontFamily: "'Syne', sans-serif" }}>
-            Instrutores perto{' '}
-            <span style={{ color: '#f6c400' }}>de você</span>
-          </h2>
-          <p className="mt-4 text-lg max-w-xl mx-auto" style={{ color: 'var(--land-muted)' }}>
-            Digite seu bairro ou endereço e encontre instrutores disponíveis agora em Fortaleza
           </p>
+          <h2
+            className="text-4xl md:text-5xl font-black"
+            style={{ fontFamily: "'Clash Display', sans-serif", color: '#0D1A0E' }}
+          >
+            Encontre perto{' '}
+            <span style={{ color: '#1B5E20' }}>de você</span>
+          </h2>
         </div>
 
-        {/* Search bar */}
-        <div className="relative mx-auto mb-8 max-w-2xl">
-          <div className="flex gap-3">
-            <div className="relative flex-1">
-              <MapPin className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-yellow-400" />
+        {/* Card: left panel + map */}
+        <div
+          className="grid grid-cols-1 lg:grid-cols-3 rounded-[2rem] overflow-hidden shadow-2xl"
+          style={{ border: '1px solid rgba(27,94,32,0.1)' }}
+        >
+          {/* Left panel */}
+          <div
+            className="p-10 text-white flex flex-col"
+            style={{ background: '#1B5E20' }}
+          >
+            <h3
+              className="text-2xl font-black mb-2"
+              style={{ fontFamily: "'Clash Display', sans-serif" }}
+            >
+              Busque por bairro
+            </h3>
+            <p className="mb-7 leading-relaxed text-sm" style={{ color: 'rgba(255,255,255,0.6)' }}>
+              Encontre instrutores certificados perto da sua casa ou trabalho.
+            </p>
+
+            {/* Search input */}
+            <div className="relative mb-6">
+              <Search
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4"
+                style={{ color: 'rgba(255,255,255,0.45)' }}
+              />
               <input
                 type="text"
                 value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value)
+                onChange={(e) => {
+                  setQuery(e.target.value)
                   setSelectedAddress(null)
                   setSelectedCoordinates(null)
                 }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault()
-                    handleSearch()
-                  }
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); handleSearch() }
                 }}
-                placeholder="Digite bairro, rua ou CEP..."
-                className="w-full rounded-2xl py-4 pl-12 pr-10 text-sm text-white placeholder-white/30 outline-none transition-all duration-300"
+                placeholder="Bairro ou endereço..."
+                className="w-full py-3.5 pl-11 pr-10 text-sm text-white placeholder-white/40 outline-none rounded-xl"
                 style={{
-                  background: 'rgba(10,22,40,0.9)',
-                  border: '1px solid rgba(246,196,0,0.2)',
-                  backdropFilter: 'blur(12px)',
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.15)',
                 }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(246,196,0,0.5)' }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(246,196,0,0.2)' }}
               />
               {query && (
-                <button
-                  type="button"
-                  onClick={resetLocation}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 hover:bg-white/10 transition-colors"
-                >
-                  <X className="h-4 w-4 text-white/40" />
+                <button type="button" onClick={resetLocation} className="absolute right-3 top-1/2 -translate-y-1/2 p-1">
+                  <X className="w-4 h-4 text-white/50" />
                 </button>
               )}
 
-              {/* Suggestions dropdown */}
+              {/* Suggestions */}
               {(loadingSuggestions || suggestions.length > 0) && (
-                <div className="absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-2xl"
-                  style={{ background: '#0a1628', border: '1px solid rgba(246,196,0,0.2)', backdropFilter: 'blur(16px)' }}>
-                  {loadingSuggestions && (
-                    <div className="px-4 py-3 text-sm" style={{ color: 'var(--land-muted)' }}>
-                      Buscando endereços...
-                    </div>
-                  )}
-                  {!loadingSuggestions && suggestions.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => handleSelectSuggestion(item)}
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-white/5"
-                    >
-                      <MapPin className="h-4 w-4 flex-shrink-0 text-yellow-400" />
-                      <span className="text-white/80">
-                        <strong className="text-white">{item.logradouro || item.bairro}</strong>
-                        {' — '}
-                        {[item.bairro, item.localidade, item.cep ? `CEP ${item.cep}` : ''].filter(Boolean).join(', ')}
-                      </span>
-                    </button>
-                  ))}
-                  {!loadingSuggestions && suggestions.length === 0 && query.trim().length >= 3 && (
-                    <div className="px-4 py-3 text-sm" style={{ color: 'var(--land-muted)' }}>
-                      Nenhum endereço encontrado.
-                    </div>
+                <div
+                  className="absolute left-0 right-0 top-full mt-1 z-30 rounded-xl overflow-hidden"
+                  style={{ background: '#0D3620', border: '1px solid rgba(255,255,255,0.1)' }}
+                >
+                  {loadingSuggestions ? (
+                    <div className="px-4 py-3 text-sm text-white/60">Buscando...</div>
+                  ) : (
+                    suggestions.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => handleSelectSuggestion(item)}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-white/80 hover:bg-white/10 transition-colors"
+                      >
+                        <MapPin className="w-4 h-4 flex-shrink-0" style={{ color: '#F9A800' }} />
+                        <span>
+                          <strong className="text-white">{item.logradouro || item.bairro}</strong>
+                          {' — '}{item.localidade}
+                        </span>
+                      </button>
+                    ))
                   )}
                 </div>
+              )}
+            </div>
+
+            {/* Featured instructors list */}
+            <div className="flex-1 space-y-3 mb-7">
+              {featuredInstructors.length > 0 ? (
+                featuredInstructors.map((inst) => (
+                  <div
+                    key={inst.id}
+                    className="flex items-center gap-3 p-3.5 rounded-xl"
+                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  >
+                    <MapPin className="w-5 h-5 flex-shrink-0" style={{ color: '#F9A800' }} />
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm truncate">{inst.name}</p>
+                      <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                        {inst.neighborhood}, {inst.city} · ⭐ {inst.rating?.toFixed(1) ?? '5.0'}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                instructors.slice(0, 3).map((inst) => (
+                  <div
+                    key={inst.id}
+                    className="flex items-center gap-3 p-3.5 rounded-xl"
+                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  >
+                    <MapPin className="w-5 h-5 flex-shrink-0" style={{ color: '#F9A800' }} />
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm truncate">{inst.name}</p>
+                      <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                        {inst.neighborhood}, {inst.city} · ⭐ {inst.rating?.toFixed(1) ?? '5.0'}
+                      </p>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
 
@@ -197,31 +227,20 @@ export default function SearchSection({ instructors }: SearchSectionProps) {
               type="button"
               onClick={handleSearch}
               disabled={Boolean(query.trim()) && (!selectedAddress || !selectedCoordinates)}
-              className="flex items-center gap-2 rounded-2xl px-6 py-4 text-sm font-bold text-black transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{
-                background: 'linear-gradient(135deg, #f6c400, #ff9500)',
-                boxShadow: '0 0 24px rgba(246,196,0,0.3)',
-              }}
+              className="w-full py-3.5 font-bold rounded-xl transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed hover:-translate-y-0.5"
+              style={{ background: '#F9A800', color: '#003527' }}
             >
-              <Search className="h-5 w-5" />
-              Buscar
+              Buscar instrutores
             </button>
+          </div>
+
+          {/* Map: 2/3 width */}
+          <div className="lg:col-span-2 h-[480px] lg:h-auto" style={{ minHeight: 480 }}>
+            <InstructorMap instructors={instructors} height="520px" focusLocation={selectedCoordinates} />
           </div>
         </div>
 
-        {/* Map container */}
-        <div
-          className="overflow-hidden rounded-3xl"
-          style={{
-            border: '1px solid rgba(246,196,0,0.15)',
-            boxShadow: '0 0 60px rgba(246,196,0,0.08), 0 32px 64px rgba(0,0,0,0.4)',
-          }}
-        >
-          <InstructorMap instructors={instructors} height="520px" focusLocation={selectedCoordinates} />
-        </div>
-
-        {/* Map hint */}
-        <p className="mt-4 text-center text-xs" style={{ color: 'var(--land-muted)' }}>
+        <p className="mt-4 text-center text-xs" style={{ color: '#5A7A60' }}>
           Clique no avatar de um instrutor no mapa para ver seu perfil completo
         </p>
       </div>

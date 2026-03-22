@@ -61,6 +61,7 @@ export async function PATCH(req: Request) {
       platform_fee_percent: body?.platform_fee_percent,
       pix_fee_percent: body?.pix_fee_percent,
       card_fee_percent: body?.card_fee_percent,
+      subscription_price: body?.subscription_price,
     })
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -71,8 +72,9 @@ export async function PATCH(req: Request) {
         platform_fee_percent: settings.platform_fee_percent,
         pix_fee_percent: settings.pix_fee_percent,
         card_fee_percent: settings.card_fee_percent,
+        subscription_price: settings.subscription_price,
       })
-      .select('platform_fee_percent,pix_fee_percent,card_fee_percent')
+      .select('platform_fee_percent,pix_fee_percent,card_fee_percent,subscription_price')
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })

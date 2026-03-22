@@ -1,3 +1,4 @@
+import { createHmac } from 'crypto'
 import { NextResponse } from 'next/server'
 import { MercadoPagoConfig, Payment, PreApproval } from 'mercadopago'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -24,9 +25,34 @@ function mapMercadoPagoStatus(status?: string): 'pending' | 'processing' | 'paid
   }
 }
 
+function verifySignature(req: Request, rawBody: string): boolean {
+  const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET
+  if (!secret) return true // sem secret configurado, aceita (desenvolvimento)
+
+  const xSignature = req.headers.get('x-signature') || ''
+  const xRequestId = req.headers.get('x-request-id') || ''
+  const url = new URL(req.url)
+  const dataId = url.searchParams.get('data.id') || ''
+
+  // Formato MP: ts=<timestamp>,v1=<hash>
+  const parts = Object.fromEntries(xSignature.split(',').map(p => p.split('=')))
+  const ts = parts['ts'] || ''
+  const v1 = parts['v1'] || ''
+  if (!ts || !v1) return false
+
+  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`
+  const hmac = createHmac('sha256', secret).update(manifest).digest('hex')
+  return hmac === v1
+}
+
 export async function POST(req: Request) {
   try {
-    const payload = await req.json().catch(() => ({}))
+    const rawBody = await req.text()
+    const payload = (() => { try { return JSON.parse(rawBody) } catch { return {} } })()
+
+    if (!verifySignature(req, rawBody)) {
+      return NextResponse.json({ ok: false, error: 'Assinatura invalida.' }, { status: 401 })
+    }
     const url = new URL(req.url)
     const type = String(payload?.type || payload?.topic || url.searchParams.get('type') || url.searchParams.get('topic') || '')
     const resourceId = String(payload?.data?.id || payload?.id || '')

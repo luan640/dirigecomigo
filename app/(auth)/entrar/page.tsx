@@ -233,7 +233,7 @@ function EntrarContent() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
-              <label className="block text-[10px] font-semibold text-[#6b9675] uppercase tracking-widest mb-1.5">
+              <label className="block text-xs font-semibold text-[#8cb89a] uppercase tracking-widest mb-1.5">
                 E-mail
               </label>
               <input
@@ -241,19 +241,19 @@ function EntrarContent() {
                 type="email"
                 autoComplete="email"
                 placeholder="seu@email.com"
-                className="w-full px-4 py-3 bg-[#061409] border border-white/[0.08] rounded-xl text-sm text-[#e8f5ea] placeholder:text-[#2a4030] focus:outline-none focus:border-[#21a637] focus:ring-2 focus:ring-[#21a637]/20 transition-all"
+                className="w-full px-4 py-3 bg-white/[0.06] border border-white/[0.18] rounded-xl text-sm text-[#e8f5ea] placeholder:text-[#4d7055] focus:outline-none focus:border-[#21a637] focus:ring-2 focus:ring-[#21a637]/20 transition-all"
               />
               {errors.email && <p className="mt-1 text-xs text-red-400">{errors.email.message}</p>}
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-[10px] font-semibold text-[#6b9675] uppercase tracking-widest">
+                <label className="block text-xs font-semibold text-[#8cb89a] uppercase tracking-widest">
                   Senha
                 </label>
                 <Link
                   href="/recuperar-senha"
-                  className="text-[10px] text-[#6b9675] hover:text-[#21a637] transition-colors"
+                  className="text-xs text-[#6b9675] hover:text-[#21a637] transition-colors"
                 >
                   Esqueceu a senha?
                 </Link>
@@ -264,12 +264,12 @@ function EntrarContent() {
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   placeholder="••••••••"
-                  className="w-full px-4 py-3 pr-11 bg-[#061409] border border-white/[0.08] rounded-xl text-sm text-[#e8f5ea] placeholder:text-[#2a4030] focus:outline-none focus:border-[#21a637] focus:ring-2 focus:ring-[#21a637]/20 transition-all"
+                  className="w-full px-4 py-3 pr-11 bg-white/[0.06] border border-white/[0.18] rounded-xl text-sm text-[#e8f5ea] placeholder:text-[#4d7055] focus:outline-none focus:border-[#21a637] focus:ring-2 focus:ring-[#21a637]/20 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2a4030] hover:text-[#6b9675] transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4d7055] hover:text-[#8cb89a] transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -291,19 +291,19 @@ function EntrarContent() {
             </button>
           </form>
 
-          <p className="text-center text-xs text-[#2a4030] mt-5">
+          <p className="text-center text-xs text-[#4d7055] mt-5">
             Ao entrar você concorda com nossos{' '}
-            <Link href="/termos" className="text-[#6b9675] hover:text-[#e8f5ea] underline transition-colors">
+            <Link href="/termos" className="text-[#8cb89a] hover:text-[#e8f5ea] underline transition-colors">
               Termos de Uso
             </Link>{' '}
             e{' '}
-            <Link href="/privacidade" className="text-[#6b9675] hover:text-[#e8f5ea] underline transition-colors">
+            <Link href="/privacidade" className="text-[#8cb89a] hover:text-[#e8f5ea] underline transition-colors">
               Política de Privacidade
             </Link>
           </p>
 
-          <p className="text-center text-[11px] text-[#1a3020] mt-10">
-            © {new Date().getFullYear()} DirigeComigo — Fortaleza e região metropolitana.
+          <p className="text-center text-[11px] text-[#3d5e45] mt-10">
+            © {new Date().getFullYear()} DireçãoFácil — Fortaleza e região metropolitana.
           </p>
         </div>
       </div>

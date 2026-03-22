@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   CheckCircle2, ChevronRight, Loader2, Trash2,
-  Camera, FileImage, Clock, ShieldCheck, Car, Bike,
+  Camera, FileImage, Clock, ShieldCheck, Car, Bike, Truck, Bus,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -26,22 +26,19 @@ import AuthLeftPanel from '@/components/auth/AuthLeftPanel'
 const instructorSchema = z.object({
   full_name: z.string().min(3, 'Informe seu nome completo'),
   email: z.string().email('E-mail inválido'),
-  phone: z.string().min(10, 'Telefone inválido'),
+  phone: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v.length === 10 || v.length === 11, 'Informe um telefone válido com DDD (10 ou 11 dígitos)'),
+  birth_date: z.string().min(1, 'Informe sua data de nascimento').refine(v => {
+    const d = new Date(v)
+    if (isNaN(d.getTime())) return false
+    const age = (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+    return age >= 18
+  }, 'Você deve ter pelo menos 18 anos'),
+  cpf: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v.length === 11, 'CPF inválido — informe 11 dígitos'),
   neighborhood: z.string().min(2, 'Informe sua localização'),
-  service_mode: z.enum(['car', 'moto', 'both']),
-  price_car: z.coerce.number().nullable(),
-  price_moto: z.coerce.number().nullable(),
-}).superRefine((values, ctx) => {
-  if ((values.service_mode === 'car' || values.service_mode === 'both') && (!values.price_car || values.price_car < 1)) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['price_car'], message: 'Informe um valor de no mínimo R$1 para carro' })
-  }
-  if ((values.service_mode === 'moto' || values.service_mode === 'both') && (!values.price_moto || values.price_moto < 1)) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['price_moto'], message: 'Informe um valor de no mínimo R$1 para moto' })
-  }
 })
 
 const studentSchema = z.object({
-  phone: z.string().min(10, 'Telefone inválido'),
+  phone: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v.length === 10 || v.length === 11, 'Informe um telefone válido com DDD (10 ou 11 dígitos)'),
   city: z.string().min(1, 'Informe a cidade'),
   state: z.string().min(1, 'Selecione o estado'),
 })
@@ -67,21 +64,50 @@ type OnboardingInstructorRow = {
   longitude?: number | null
 }
 
+const CNH_CATEGORIES = [
+  { value: 'A',  label: 'Categoria A', desc: 'Motocicletas',              icon: Bike  },
+  { value: 'B',  label: 'Categoria B', desc: 'Carros',                    icon: Car   },
+  { value: 'C',  label: 'Categoria C', desc: 'Veículos pesados',          icon: Truck },
+  { value: 'D',  label: 'Categoria D', desc: 'Transporte de passageiros', icon: Bus   },
+  { value: 'E',  label: 'Categoria E', desc: 'Combinação de veículos',    icon: Truck },
+]
+
+const LESSON_TYPES = [
+  { value: 'exam_prep',    label: 'Exame CNH',       desc: 'Preparação para prova prática' },
+  { value: 'fear_driving', label: 'Medo de dirigir', desc: 'Aulas para quem quer destravar o medo' },
+]
+
+function maskCpf(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 11)
+  if (digits.length <= 3) return digits
+  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`
+  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`
+}
+
+function maskPhone(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 11)
+  if (digits.length <= 2) return digits
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
+}
+
 function getFallbackLetter(name: string) {
   return name.trim().charAt(0).toUpperCase() || 'I'
 }
 
 /* ─── Input / Field helpers ────────────────────────────────────── */
 
-const inputClass = 'w-full px-4 py-3 bg-[#061409] border border-white/[0.08] rounded-xl text-sm text-[#e8f5ea] placeholder:text-[#2a4030] focus:outline-none focus:border-[#21a637] focus:ring-2 focus:ring-[#21a637]/20 transition-all'
+const inputClass = 'w-full px-4 py-3 bg-white/[0.06] border border-white/[0.18] rounded-xl text-sm text-white placeholder:text-[#6b7280] focus:outline-none focus:border-white/40 focus:ring-2 focus:ring-white/10 transition-all'
 const inputClassReadonly = `${inputClass} opacity-50 cursor-not-allowed`
 
 function Field({ label, error, hint, children }: { label: string; error?: string; hint?: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-[10px] font-semibold text-[#6b9675] uppercase tracking-widest mb-1.5">{label}</label>
+      <label className="block text-[10px] font-semibold text-[#9ca3af] uppercase tracking-widest mb-1.5">{label}</label>
       {children}
-      {hint && !error && <p className="mt-1 text-xs text-[#2a4030]">{hint}</p>}
+      {hint && !error && <p className="mt-1 text-xs text-[#6b7280]">{hint}</p>}
       {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
     </div>
   )
@@ -89,7 +115,7 @@ function Field({ label, error, hint, children }: { label: string; error?: string
 
 /* ─── Done screen (instructor) ─────────────────────────────────── */
 
-function InstructorDoneScreen({ onContinue }: { onContinue: () => void }) {
+function InstructorDoneScreen() {
   return (
     <div className="flex flex-col items-center text-center py-4">
       <div className="relative mb-6">
@@ -118,7 +144,7 @@ function InstructorDoneScreen({ onContinue }: { onContinue: () => void }) {
         {[
           { icon: ShieldCheck, text: 'Verificamos sua CNH e dados cadastrais' },
           { icon: Clock,       text: 'Prazo de análise: até 2 dias úteis' },
-          { icon: CheckCircle2, text: 'Você receberá um e-mail quando aprovado' },
+          { icon: CheckCircle2, text: 'Você receberá um WhatsApp quando aprovado' },
         ].map(({ icon: Icon, text }, i) => (
           <div key={i} className="flex items-start gap-3">
             <Icon className="w-4 h-4 text-[#21a637] mt-0.5 flex-shrink-0" />
@@ -127,15 +153,6 @@ function InstructorDoneScreen({ onContinue }: { onContinue: () => void }) {
         ))}
       </div>
 
-      <button
-        type="button"
-        onClick={onContinue}
-        className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl font-semibold text-sm text-black transition-all duration-200 active:scale-[0.98]"
-        style={{ background: 'linear-gradient(135deg, #21a637 0%, #178a2e 100%)', boxShadow: '0 6px 24px rgba(33,166,55,0.35)' }}
-      >
-        Ir para o painel
-        <ChevronRight className="w-4 h-4" />
-      </button>
     </div>
   )
 }
@@ -193,6 +210,15 @@ function OnboardingContent() {
   const [cnhUploading, setCnhUploading] = useState(false)
   const cnhInputRef = useRef<HTMLInputElement | null>(null)
 
+  // Categories & prices
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(['B'])
+  const [categoryPrices, setCategoryPrices] = useState<Record<string, string>>({ B: '80' })
+  const [categoriesError, setCategoriesError] = useState<string | null>(null)
+
+  // Lesson options
+  const [acceptsStudentCar, setAcceptsStudentCar] = useState(false)
+  const [selectedLessonTypes, setSelectedLessonTypes] = useState<string[]>([])
+
   // Location
   const [locationQuery, setLocationQuery] = useState('')
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false)
@@ -206,7 +232,7 @@ function OnboardingContent() {
   const instructorForm = useForm<InstructorFormData>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(instructorSchema) as any,
-    defaultValues: { full_name: '', email: '', phone: '', neighborhood: '', service_mode: 'car', price_car: 80, price_moto: null },
+    defaultValues: { full_name: '', email: '', phone: '', birth_date: '', cpf: '', neighborhood: '' },
   })
 
   const studentForm = useForm<StudentFormData>({
@@ -329,6 +355,20 @@ function OnboardingContent() {
 
   /* Instructor submit */
   async function handleInstructorSubmit(values: InstructorFormData) {
+    // Validate categories
+    if (selectedCategories.length === 0) {
+      setCategoriesError('Selecione pelo menos uma categoria.')
+      return
+    }
+    for (const cat of selectedCategories) {
+      const price = Number(categoryPrices[cat] || 0)
+      if (!price || price < 1) {
+        setCategoriesError(`Informe um valor de no mínimo R$1 para a Categoria ${cat}.`)
+        return
+      }
+    }
+    setCategoriesError(null)
+
     setLoading(true)
     try {
       const supabase = createClient()
@@ -338,24 +378,33 @@ function OnboardingContent() {
 
       await updateProfilesUpsert(user.id, { full_name: values.full_name, phone: values.phone, email: values.email, role: 'instructor' })
 
-      const categories = values.service_mode === 'both' ? ['A', 'B'] : values.service_mode === 'moto' ? ['A'] : ['B']
-      const primaryCategory = values.service_mode === 'both' ? 'AB' : values.service_mode === 'moto' ? 'A' : 'B'
-      const selectedPrices = [values.price_car, values.price_moto].filter((item): item is number => typeof item === 'number' && item >= 1)
-      const pricePerLesson = Math.min(...selectedPrices)
+      const categories = [...selectedCategories].sort()
+      const primaryCategory = categories.length === 1 ? categories[0] : categories.includes('A') && categories.includes('B') ? 'AB' : categories[0]
+      const prices = selectedCategories.map(cat => Number(categoryPrices[cat] || 0)).filter(p => p >= 1)
+      const pricePerLesson = Math.min(...prices)
 
       if (selectedLatitude === null || selectedLongitude === null) throw new Error('Selecione um local válido para preencher latitude e longitude.')
       if (!selectedCity || !selectedState) throw new Error('Selecione um local válido em Fortaleza ou Caucaia.')
+
+      const vehicleTypeLabel = categories.map(cat => CNH_CATEGORIES.find(c => c.value === cat)?.desc || cat).join(' e ')
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const instructorPayload: any = {
         id: user.id, profile_id: user.id,
         category: primaryCategory, categories,
         price_per_lesson: pricePerLesson,
-        price_per_lesson_a: categories.includes('A') ? values.price_moto : null,
-        price_per_lesson_b: categories.includes('B') ? values.price_car : null,
-        vehicle_type: values.service_mode === 'both' ? 'Carro e moto' : values.service_mode === 'moto' ? 'Moto' : 'Carro',
+        price_per_lesson_a: categories.includes('A') ? Number(categoryPrices['A'] || 0) : null,
+        price_per_lesson_b: categories.includes('B') ? Number(categoryPrices['B'] || 0) : null,
+        price_per_lesson_c: categories.includes('C') ? Number(categoryPrices['C'] || 0) : null,
+        price_per_lesson_d: categories.includes('D') ? Number(categoryPrices['D'] || 0) : null,
+        price_per_lesson_e: categories.includes('E') ? Number(categoryPrices['E'] || 0) : null,
+        accepts_student_car: acceptsStudentCar,
+        lesson_types: selectedLessonTypes,
+        vehicle_type: vehicleTypeLabel,
         neighborhood: values.neighborhood, city: selectedCity, state: selectedState,
         latitude: selectedLatitude, longitude: selectedLongitude,
+        birth_date: values.birth_date || null,
+        cpf: values.cpf || null,
         is_active: false,
         status: 'pending',
         cnh_photo_url: cnhPhotoUrl || null,
@@ -482,18 +531,16 @@ function OnboardingContent() {
     setSelectedLongitude(address.longitude)
   }
 
-  const serviceMode = instructorForm.watch('service_mode')
-
-  /* ── Instructor layout (full-screen split) ── */
+/* ── Instructor layout (full-screen split) ── */
   if (isInstructor) {
     return (
-      <div className="fixed inset-0 z-50 flex overflow-hidden bg-[#020d04]">
+      <div className="fixed inset-0 z-50 flex overflow-hidden bg-[#0d0d10]">
         <AuthLeftPanel
           headline={<>Seja um<br /><span className="text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(120deg,#21a637 0%,#f6c400 100%)' }}>instrutor.</span></>}
           subtext="Complete seu cadastro para começar a receber alunos em Fortaleza e região metropolitana."
         />
 
-        <div className="flex-1 flex flex-col items-center justify-start px-6 py-10 lg:px-10 overflow-y-auto bg-[#020d04]">
+        <div className="flex-1 flex flex-col items-center justify-start px-6 py-10 lg:px-10 overflow-y-auto bg-[#0d0d10]">
           {/* Mobile logo */}
           <div className="lg:hidden mb-6 self-start w-full max-w-lg mx-auto">
             <Link href="/"><BrandLogo className="h-10 w-auto rounded-md" priority /></Link>
@@ -501,16 +548,16 @@ function OnboardingContent() {
 
           <div className="w-full max-w-lg">
             {done ? (
-              <InstructorDoneScreen onContinue={() => router.push('/painel/assinatura')} />
+              <InstructorDoneScreen />
             ) : (
               <>
                 <h1
-                  className="text-2xl font-bold text-[#e8f5ea] mb-1"
+                  className="text-2xl font-bold text-white mb-1"
                   style={{ fontFamily: 'Syne, system-ui, sans-serif' }}
                 >
                   Concluir cadastro
                 </h1>
-                <p className="text-sm text-[#6b9675] mb-7">
+                <p className="text-sm text-[#9ca3af] mb-7">
                   Preencha seus dados para que possamos analisar e ativar sua conta.
                 </p>
 
@@ -526,31 +573,31 @@ function OnboardingContent() {
 
                 {loadingProfile ? (
                   <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-6 h-6 animate-spin text-[#21a637]" />
-                    <span className="ml-3 text-sm text-[#6b9675]">Carregando seus dados...</span>
+                    <Loader2 className="w-6 h-6 animate-spin text-white/60" />
+                    <span className="ml-3 text-sm text-[#9ca3af]">Carregando seus dados...</span>
                   </div>
                 ) : (
                   <form onSubmit={instructorForm.handleSubmit(handleInstructorSubmit)} className="space-y-5">
                     {/* Avatar */}
                     <div className="flex items-center gap-4 rounded-2xl p-4"
-                      style={{ background: 'rgba(6,20,10,0.8)', border: '1px solid rgba(33,166,55,0.12)' }}>
+                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
                         className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-full transition-opacity hover:opacity-80"
-                        style={{ border: '2px solid rgba(33,166,55,0.3)', background: '#061409' }}
+                        style={{ border: '2px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)' }}
                         disabled={avatarUploading}
                       >
                         {avatarUploading ? (
                           <div className="flex h-full w-full items-center justify-center">
-                            <Loader2 className="w-5 h-5 animate-spin text-[#21a637]" />
+                            <Loader2 className="w-5 h-5 animate-spin text-white/60" />
                           </div>
                         ) : avatarUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center">
-                            <span className="text-2xl font-bold text-[#21a637]">{avatarFallbackLetter}</span>
+                            <span className="text-2xl font-bold text-white/60">{avatarFallbackLetter}</span>
                           </div>
                         )}
                         <div className="absolute inset-0 flex items-end justify-center pb-1 opacity-0 hover:opacity-100 transition-opacity">
@@ -558,11 +605,12 @@ function OnboardingContent() {
                         </div>
                       </button>
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-[#e8f5ea] mb-2">Foto de perfil</p>
+                        <p className="text-sm font-semibold text-white">Foto de perfil</p>
+                        <p className="text-xs text-[#9ca3af] mb-2 mt-0.5">Essa foto será exibida aos alunos no seu perfil público.</p>
                         <div className="flex gap-2 flex-wrap">
                           <button type="button" onClick={() => fileInputRef.current?.click()} disabled={avatarUploading}
-                            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#21a637] transition-colors"
-                            style={{ border: '1px solid rgba(33,166,55,0.3)', background: 'rgba(33,166,55,0.08)' }}>
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white/70 transition-colors"
+                            style={{ border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.06)' }}>
                             Escolher foto
                           </button>
                           {avatarUrl && (
@@ -591,11 +639,45 @@ function OnboardingContent() {
                     </Field>
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <Field label="Data de nascimento" error={instructorForm.formState.errors.birth_date?.message}>
+                        <input
+                          {...instructorForm.register('birth_date')}
+                          type="date"
+                          className={inputClass}
+                          style={{ colorScheme: 'dark' }}
+                        />
+                      </Field>
+                      <Field label="CPF" error={instructorForm.formState.errors.cpf?.message}>
+                        <input
+                          {...instructorForm.register('cpf')}
+                          placeholder="000.000.000-00"
+                          maxLength={14}
+                          onChange={e => {
+                            const masked = maskCpf(e.target.value)
+                            instructorForm.setValue('cpf', masked, { shouldDirty: true, shouldValidate: true })
+                            e.target.value = masked
+                          }}
+                          className={inputClass}
+                        />
+                      </Field>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <Field label="E-mail" error={instructorForm.formState.errors.email?.message}>
                         <input {...instructorForm.register('email')} readOnly className={inputClassReadonly} />
                       </Field>
                       <Field label="Telefone" error={instructorForm.formState.errors.phone?.message}>
-                        <input {...instructorForm.register('phone')} placeholder="(85) 99999-0000" className={inputClass} />
+                        <input
+                          {...instructorForm.register('phone')}
+                          placeholder="(85) 99999-0000"
+                          maxLength={16}
+                          onChange={e => {
+                            const masked = maskPhone(e.target.value)
+                            instructorForm.setValue('phone', masked, { shouldDirty: true, shouldValidate: true })
+                            e.target.value = masked
+                          }}
+                          className={inputClass}
+                        />
                       </Field>
                     </div>
 
@@ -623,100 +705,193 @@ function OnboardingContent() {
                         <input type="hidden" {...instructorForm.register('neighborhood')} />
                         {showLocationSuggestions && (loadingLocationSuggestions || locationSuggestions.length > 0) && (
                           <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl shadow-xl"
-                            style={{ background: '#061409', border: '1px solid rgba(33,166,55,0.2)' }}>
+                            style={{ background: '#1c1c24', border: '1px solid rgba(255,255,255,0.12)' }}>
                             {loadingLocationSuggestions && (
-                              <div className="px-4 py-3 text-sm text-[#6b9675]">Buscando endereços...</div>
+                              <div className="px-4 py-3 text-sm text-[#9ca3af]">Buscando endereços...</div>
                             )}
                             {!loadingLocationSuggestions && locationSuggestions.map(item => (
                               <button
                                 key={item.id}
                                 type="button"
                                 onMouseDown={event => { event.preventDefault(); void handleSelectLocation(item) }}
-                                className="block w-full px-4 py-3 text-left text-sm transition-colors hover:bg-[#0a2010]"
+                                className="block w-full px-4 py-3 text-left text-sm transition-colors hover:bg-white/[0.05]"
                               >
-                                <span className="block font-medium text-[#e8f5ea]">{item.logradouro || item.bairro}</span>
-                                <span className="block text-xs text-[#6b9675]">
+                                <span className="block font-medium text-white">{item.logradouro || item.bairro}</span>
+                                <span className="block text-xs text-[#6b7280]">
                                   {[item.bairro, item.localidade, item.cep ? `CEP ${item.cep}` : ''].filter(Boolean).join(' · ')}
                                 </span>
                               </button>
                             ))}
                             {!loadingLocationSuggestions && locationSuggestions.length === 0 && locationQuery.trim().length >= 3 && (
-                              <div className="px-4 py-3 text-sm text-[#6b9675]">Nenhum endereço encontrado.</div>
+                              <div className="px-4 py-3 text-sm text-[#9ca3af]">Nenhum endereço encontrado.</div>
                             )}
                           </div>
                         )}
                       </div>
                     </Field>
 
-                    {/* Service mode */}
-                    <Field label="Serviços oferecidos" error={instructorForm.formState.errors.service_mode?.message}>
-                      <div className="grid gap-3 grid-cols-3">
-                        {[
-                          { value: 'car', label: 'Carro', icon: Car },
-                          { value: 'moto', label: 'Moto', icon: Bike },
-                          { value: 'both', label: 'Carro e moto', icon: Car },
-                        ].map(({ value, label, icon: Icon }) => {
-                          const active = serviceMode === value
+                    {/* Categories */}
+                    <div>
+                      <label className="block text-[10px] font-semibold text-[#9ca3af] uppercase tracking-widest mb-2">
+                        Serviços oferecidos
+                      </label>
+                      <div className="grid gap-2 grid-cols-2 sm:grid-cols-3">
+                        {CNH_CATEGORIES.map(({ value, label, desc, icon: Icon }) => {
+                          const active = selectedCategories.includes(value)
                           return (
-                            <label key={value}
-                              className="cursor-pointer rounded-xl p-3 text-sm font-semibold transition-all text-center"
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() => {
+                                setCategoriesError(null)
+                                setSelectedCategories(prev =>
+                                  prev.includes(value) ? prev.filter(c => c !== value) : [...prev, value]
+                                )
+                              }}
+                              className="rounded-xl p-3 text-left transition-all"
                               style={active
-                                ? { border: '2px solid #21a637', background: 'rgba(33,166,55,0.12)', color: '#21a637' }
-                                : { border: '2px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: '#6b9675' }}>
-                              <input type="radio" value={value} {...instructorForm.register('service_mode')} className="sr-only" />
-                              <Icon className="w-4 h-4 mx-auto mb-1" />
-                              {label}
-                            </label>
+                                ? { border: '2px solid rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.1)' }
+                                : { border: '2px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)' }}
+                            >
+                              <Icon className={`w-4 h-4 mb-1.5 ${active ? 'text-white' : 'text-[#6b7280]'}`} />
+                              <p className={`text-xs font-bold ${active ? 'text-white' : 'text-[#6b7280]'}`}>{label}</p>
+                              <p className={`text-[11px] ${active ? 'text-white/60' : 'text-[#4b5563]'}`}>{desc}</p>
+                            </button>
                           )
                         })}
                       </div>
-                    </Field>
-
-                    {/* Prices */}
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      {(serviceMode === 'car' || serviceMode === 'both') && (
-                        <Field label="Valor por aula de carro (R$)" error={instructorForm.formState.errors.price_car?.message}>
-                          <input {...instructorForm.register('price_car')} type="number" min={1} className={inputClass} />
-                        </Field>
-                      )}
-                      {(serviceMode === 'moto' || serviceMode === 'both') && (
-                        <Field label="Valor por aula de moto (R$)" error={instructorForm.formState.errors.price_moto?.message}>
-                          <input {...instructorForm.register('price_moto')} type="number" min={1} className={inputClass} />
-                        </Field>
-                      )}
+                      {categoriesError && <p className="mt-1.5 text-xs text-red-400">{categoriesError}</p>}
                     </div>
-                    <p className="text-xs text-[#2a4030]">
-                      Informe o valor líquido que você quer receber. O aluno verá o acréscimo no checkout conforme Pix ou cartão.
-                    </p>
+
+                    {/* Price per selected category */}
+                    {selectedCategories.length > 0 && (
+                      <div className="space-y-3">
+                        <p className="text-[10px] font-semibold text-[#9ca3af] uppercase tracking-widest">
+                          Valor por aula (R$)
+                        </p>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          {selectedCategories.sort().map(cat => {
+                            const catInfo = CNH_CATEGORIES.find(c => c.value === cat)
+                            return (
+                              <div key={cat}>
+                                <label className="block text-xs text-[#9ca3af] mb-1">
+                                  {catInfo?.label} — {catInfo?.desc}
+                                </label>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  placeholder="Ex: 80"
+                                  value={categoryPrices[cat] ?? ''}
+                                  onChange={e => {
+                                    setCategoriesError(null)
+                                    setCategoryPrices(prev => ({ ...prev, [cat]: e.target.value }))
+                                  }}
+                                  className={inputClass}
+                                />
+                              </div>
+                            )
+                          })}
+                        </div>
+                        <p className="text-xs text-[#6b7280]">
+                          Informe o valor líquido que você quer receber. O aluno verá o acréscimo no checkout conforme Pix ou cartão.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Accepts student car */}
+                    <button
+                      type="button"
+                      onClick={() => setAcceptsStudentCar(prev => !prev)}
+                      className="w-full flex items-center justify-between rounded-xl p-4 transition-all"
+                      style={acceptsStudentCar
+                        ? { border: '2px solid rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.08)' }
+                        : { border: '2px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)' }}
+                    >
+                      <div className="text-left">
+                        <p className={`text-sm font-semibold ${acceptsStudentCar ? 'text-white' : 'text-[#6b7280]'}`}>
+                          Aceito dar aula no veículo do aluno
+                        </p>
+                        <p className="text-xs text-[#4b5563] mt-0.5">
+                          O aluno traz o próprio veículo (carro, moto, caminhão…)
+                        </p>
+                      </div>
+                      <div
+                        className="w-11 h-6 rounded-full flex-shrink-0 transition-all relative"
+                        style={{ background: acceptsStudentCar ? '#16a34a' : 'rgba(255,255,255,0.1)' }}
+                      >
+                        <div
+                          className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all"
+                          style={{ left: acceptsStudentCar ? '22px' : '2px' }}
+                        />
+                      </div>
+                    </button>
+
+                    {/* Lesson types */}
+                    <div>
+                      <label className="block text-[10px] font-semibold text-[#9ca3af] uppercase tracking-widest mb-2">
+                        Modalidades de aula
+                      </label>
+                      <div className="space-y-2">
+                        {LESSON_TYPES.map(({ value, label, desc }) => {
+                          const active = selectedLessonTypes.includes(value)
+                          return (
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() => setSelectedLessonTypes(prev =>
+                                prev.includes(value) ? prev.filter(t => t !== value) : [...prev, value]
+                              )}
+                              className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-all"
+                              style={active
+                                ? { border: '2px solid rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.08)' }
+                                : { border: '2px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}
+                            >
+                              <div
+                                className="w-4 h-4 rounded flex-shrink-0 flex items-center justify-center transition-all"
+                                style={active
+                                  ? { background: 'rgba(255,255,255,0.9)', border: '2px solid white' }
+                                  : { background: 'transparent', border: '2px solid rgba(255,255,255,0.2)' }}
+                              >
+                                {active && <CheckCircle2 className="w-3 h-3 text-black" />}
+                              </div>
+                              <div>
+                                <p className={`text-sm font-semibold ${active ? 'text-white' : 'text-[#6b7280]'}`}>{label}</p>
+                                <p className="text-xs text-[#4b5563]">{desc}</p>
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
 
                     {/* CNH upload */}
                     <div>
-                      <label className="block text-[10px] font-semibold text-[#6b9675] uppercase tracking-widest mb-1.5">
-                        Foto da CNH <span className="text-[#21a637]">*</span>
+                      <label className="block text-[10px] font-semibold text-[#9ca3af] uppercase tracking-widest mb-1.5">
+                        Foto da CNH <span className="text-white/60">*</span>
                       </label>
                       <div
                         className="relative rounded-2xl p-5 transition-all"
-                        style={{ background: 'rgba(6,20,10,0.8)', border: cnhPhotoUrl ? '1px solid rgba(33,166,55,0.4)' : '1px dashed rgba(33,166,55,0.2)' }}
+                        style={{ background: 'rgba(255,255,255,0.03)', border: cnhPhotoUrl ? '1px solid rgba(255,255,255,0.3)' : '1px dashed rgba(255,255,255,0.15)' }}
                       >
                         {cnhUploading ? (
                           <div className="flex flex-col items-center gap-2 py-4">
-                            <Loader2 className="w-6 h-6 animate-spin text-[#21a637]" />
-                            <p className="text-xs text-[#6b9675]">Enviando...</p>
+                            <Loader2 className="w-6 h-6 animate-spin text-white/60" />
+                            <p className="text-xs text-[#9ca3af]">Enviando...</p>
                           </div>
                         ) : cnhPhotoUrl ? (
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                              style={{ background: 'rgba(33,166,55,0.15)' }}>
-                              <CheckCircle2 className="w-5 h-5 text-[#21a637]" />
+                              style={{ background: 'rgba(255,255,255,0.08)' }}>
+                              <CheckCircle2 className="w-5 h-5 text-white/80" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-[#e8f5ea]">CNH enviada</p>
-                              <p className="text-xs text-[#6b9675] truncate">{cnhFileName}</p>
+                              <p className="text-sm font-semibold text-white">CNH enviada</p>
+                              <p className="text-xs text-[#9ca3af] truncate">{cnhFileName}</p>
                             </div>
                             <button
                               type="button"
                               onClick={() => { setCnhPhotoUrl(null); setCnhFileName(null) }}
-                              className="text-[#6b9675] hover:text-red-400 transition-colors"
+                              className="text-[#6b7280] hover:text-red-400 transition-colors"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -727,10 +902,10 @@ function OnboardingContent() {
                             onClick={() => cnhInputRef.current?.click()}
                             className="w-full flex flex-col items-center gap-2 py-4"
                           >
-                            <FileImage className="w-8 h-8 text-[#21a637] opacity-60" />
+                            <FileImage className="w-8 h-8 text-white/40" />
                             <div className="text-center">
-                              <p className="text-sm font-semibold text-[#e8f5ea]">Clique para enviar a foto da CNH</p>
-                              <p className="text-xs text-[#6b9675] mt-0.5">JPG, PNG, WEBP ou PDF — máx. 10 MB</p>
+                              <p className="text-sm font-semibold text-white">Clique para enviar a foto da CNH</p>
+                              <p className="text-xs text-[#9ca3af] mt-0.5">JPG, PNG, WEBP ou PDF — máx. 10 MB</p>
                             </div>
                           </button>
                         )}
@@ -742,7 +917,7 @@ function OnboardingContent() {
                           className="hidden"
                         />
                       </div>
-                      <p className="mt-1.5 text-xs text-[#2a4030]">
+                      <p className="mt-1.5 text-xs text-[#6b7280]">
                         Envie uma foto legível da frente da CNH. Usamos para verificar sua habilitação.
                       </p>
                     </div>
@@ -760,8 +935,8 @@ function OnboardingContent() {
                       {loading ? 'Enviando cadastro...' : 'Enviar cadastro para análise'}
                     </button>
 
-                    <p className="text-center text-[11px] text-[#1a3020]">
-                      © {new Date().getFullYear()} DirigeComigo — Fortaleza e região metropolitana.
+                    <p className="text-center text-[11px] text-[#6b7280]">
+                      © {new Date().getFullYear()} DireçãoFácil — Fortaleza e região metropolitana.
                     </p>
                   </form>
                 )}
@@ -776,11 +951,11 @@ function OnboardingContent() {
   /* ── Student layout (auth card) ── */
   return (
     <>
-      <h1 className="mb-1 text-xl font-extrabold text-[#e8f5ea]"
+      <h1 className="mb-1 text-xl font-extrabold text-white"
         style={{ fontFamily: 'Syne, system-ui, sans-serif' }}>
         Complete seu perfil
       </h1>
-      <p className="mb-6 text-sm text-[#6b9675]">
+      <p className="mb-6 text-sm text-[#9ca3af]">
         Só mais algumas informações para terminar seu cadastro.
       </p>
 
@@ -789,7 +964,17 @@ function OnboardingContent() {
       ) : (
         <form onSubmit={studentForm.handleSubmit(handleStudentSubmit)} className="space-y-4">
           <Field label="Telefone" error={studentForm.formState.errors.phone?.message}>
-            <input {...studentForm.register('phone')} placeholder="(85) 99999-0000" className={inputClass} />
+            <input
+              {...studentForm.register('phone')}
+              placeholder="(85) 99999-0000"
+              maxLength={16}
+              onChange={e => {
+                const masked = maskPhone(e.target.value)
+                studentForm.setValue('phone', masked, { shouldDirty: true, shouldValidate: true })
+                e.target.value = masked
+              }}
+              className={inputClass}
+            />
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
@@ -797,7 +982,7 @@ function OnboardingContent() {
               <input {...studentForm.register('city')} className={inputClass} />
             </Field>
             <Field label="Estado" error={studentForm.formState.errors.state?.message}>
-              <select {...studentForm.register('state')} className={`${inputClass} bg-[#061409]`}>
+              <select {...studentForm.register('state')} className={`${inputClass} bg-[#16161d]`}>
                 {BRAZIL_STATES.map(state => (
                   <option key={state.value} value={state.value}>{state.value}</option>
                 ))}

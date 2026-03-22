@@ -125,14 +125,14 @@ function CadastroContent() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex overflow-hidden bg-[#020d04]">
+    <div className="fixed inset-0 z-50 flex overflow-hidden bg-[#0d0d10]">
       <AuthLeftPanel
         headline={<>Sua CNH<br /><span className="text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(120deg,#21a637 0%,#f6c400 100%)' }}>começa aqui.</span></>}
         subtext="Conectamos alunos a instrutores qualificados em Fortaleza. Agende aulas práticas, acompanhe seu progresso e dirija com confiança."
       />
 
       {/* ── Form panel ── */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 lg:px-10 overflow-y-auto bg-[#020d04]">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 lg:px-10 overflow-y-auto bg-[#0d0d10]">
         {/* Mobile logo */}
         <div className="lg:hidden mb-8 self-start w-full max-w-sm mx-auto">
           <Link href="/"><BrandLogo className="h-10 w-auto rounded-md" priority /></Link>
@@ -197,7 +197,7 @@ function CadastroContent() {
               ] as const
             ).map(({ name, label, type, autoComplete, placeholder }) => (
               <div key={name}>
-                <label className="block text-[10px] font-semibold text-[#6b9675] uppercase tracking-widest mb-1.5">
+                <label className="block text-xs font-semibold text-[#9ca3af] uppercase tracking-widest mb-1.5">
                   {label}
                 </label>
                 <input
@@ -205,14 +205,14 @@ function CadastroContent() {
                   type={type}
                   autoComplete={autoComplete}
                   placeholder={placeholder}
-                  className="w-full px-4 py-3 bg-[#061409] border border-white/[0.08] rounded-xl text-sm text-[#e8f5ea] placeholder:text-[#2a4030] focus:outline-none focus:border-[#21a637] focus:ring-2 focus:ring-[#21a637]/20 transition-all"
+                  className="w-full px-4 py-3 bg-white/[0.06] border border-white/[0.18] rounded-xl text-sm text-[#e8f5ea] placeholder:text-[#6b7280] focus:outline-none focus:border-[#21a637] focus:ring-2 focus:ring-[#21a637]/20 transition-all"
                 />
                 {errors[name] && <p className="text-xs text-red-400 mt-1">{errors[name]?.message}</p>}
               </div>
             ))}
 
             <div>
-              <label className="block text-[10px] font-semibold text-[#6b9675] uppercase tracking-widest mb-1.5">
+              <label className="block text-xs font-semibold text-[#9ca3af] uppercase tracking-widest mb-1.5">
                 Senha
               </label>
               <div className="relative">
@@ -221,12 +221,12 @@ function CadastroContent() {
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
                   placeholder="Mínimo 8 caracteres"
-                  className="w-full px-4 py-3 pr-11 bg-[#061409] border border-white/[0.08] rounded-xl text-sm text-[#e8f5ea] placeholder:text-[#2a4030] focus:outline-none focus:border-[#21a637] focus:ring-2 focus:ring-[#21a637]/20 transition-all"
+                  className="w-full px-4 py-3 pr-11 bg-white/[0.06] border border-white/[0.18] rounded-xl text-sm text-[#e8f5ea] placeholder:text-[#6b7280] focus:outline-none focus:border-[#21a637] focus:ring-2 focus:ring-[#21a637]/20 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2a4030] hover:text-[#6b9675] transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6b7280] hover:text-[#9ca3af] transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -248,15 +248,15 @@ function CadastroContent() {
             </button>
           </form>
 
-          <p className="text-center text-xs text-[#2a4030] mt-5">
+          <p className="text-center text-xs text-[#6b7280] mt-5">
             Ao criar sua conta você concorda com nossos{' '}
-            <Link href="/termos" className="text-[#6b9675] hover:text-[#e8f5ea] underline transition-colors">
+            <Link href="/termos" className="text-[#9ca3af] hover:text-[#e8f5ea] underline transition-colors">
               Termos de Uso
             </Link>
           </p>
 
-          <p className="text-center text-[11px] text-[#1a3020] mt-10">
-            © {new Date().getFullYear()} DirigeComigo — Fortaleza e região metropolitana.
+          <p className="text-center text-[11px] text-[#6b7280] mt-10">
+            © {new Date().getFullYear()} DireçãoFácil — Fortaleza e região metropolitana.
           </p>
         </div>
       </div>
@@ -268,7 +268,7 @@ export default function CadastroPage() {
   return (
     <Suspense
       fallback={
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020d04]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0d10]">
           <div className="text-center">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#21a637]/15">
               <Loader2 className="h-8 w-8 animate-spin text-[#21a637]" />

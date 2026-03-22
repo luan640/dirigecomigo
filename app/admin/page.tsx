@@ -86,7 +86,7 @@ export default async function AdminPage() {
     db.from('profiles').select('id,full_name,email,role'),
     db.from('bookings').select('*'),
     db.from('subscriptions').select('*'),
-    db.from('platform_settings').select('platform_fee_percent,pix_fee_percent,card_fee_percent').eq('key', 'default').maybeSingle(),
+    db.from('platform_settings').select('platform_fee_percent,pix_fee_percent,card_fee_percent,subscription_price').eq('key', 'default').maybeSingle(),
   ])
 
   const instructorRows: AdminInstructorRow[] = Array.isArray(instructors) ? instructors : []

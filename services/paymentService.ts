@@ -133,14 +133,11 @@ export const paymentService = {
   },
 
   /**
-   * Create a payment intent for checkout
+   * Create a payment intent for checkout.
+   * Card payments are tokenized client-side via MercadoPagoCardBrick and go directly
+   * to /api/payments — this method is only called for PIX.
    */
   async createPaymentIntent(params: CreatePaymentParams): Promise<ApiResponse<PaymentIntent>> {
-    // Card checkout remains in mock mode until client-side tokenization is implemented.
-    if (params.paymentMethod === 'card') {
-      return mockProvider.createPaymentIntent(params)
-    }
-
     const provider = getProvider()
     return provider.createPaymentIntent(params)
   },
