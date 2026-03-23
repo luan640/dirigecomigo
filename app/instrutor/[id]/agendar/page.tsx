@@ -35,6 +35,7 @@ function CheckoutContent() {
   const [payMethod, setPayMethod] = useState<PayMethod>('pix')
   const [instructor, setInstructor] = useState<InstructorCard | null>(null)
   const [loadingInstructor, setLoadingInstructor] = useState(true)
+  const [instructorError, setInstructorError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [pixCopied, setPixCopied] = useState(false)
   const [pixIntentId, setPixIntentId] = useState<string | null>(null)
@@ -208,6 +209,7 @@ function CheckoutContent() {
         if (!mounted) return
 
         if (error || !data) {
+          setInstructorError(`query error: ${JSON.stringify(error)} | data: ${JSON.stringify(data)}`)
           setInstructor(null)
           return
         }
@@ -241,8 +243,11 @@ function CheckoutContent() {
           min_advance_booking_hours: Number(data.min_advance_booking_hours || 2),
           cancellation_notice_hours: Number(data.cancellation_notice_hours || 24),
         })
-      } catch {
-        if (mounted) setInstructor(null)
+      } catch (err) {
+        if (mounted) {
+          setInstructorError(`exception: ${(err as Error)?.message || String(err)}`)
+          setInstructor(null)
+        }
       } finally {
         if (mounted) setLoadingInstructor(false)
       }
@@ -660,6 +665,9 @@ function CheckoutContent() {
             <p className="mt-2 text-sm text-gray-500">
               Nao foi possivel carregar os dados deste instrutor para concluir o agendamento.
             </p>
+            {instructorError && (
+              <pre className="mt-2 rounded bg-red-50 p-2 text-xs text-red-700 break-all whitespace-pre-wrap">{instructorError}</pre>
+            )}
             <Link
               href={`/instrutor/${id}`}
               className="mt-6 inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
