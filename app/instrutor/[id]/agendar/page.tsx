@@ -186,7 +186,13 @@ function CheckoutContent() {
     if (customerPhone.trim()) return true
 
     toast.error('Informe seu telefone antes de agendar a aula.')
-    router.push('/onboarding?role=student')
+    const params = new URLSearchParams()
+    if (slotId) params.set('slotId', slotId)
+    if (dateStr) params.set('date', dateStr)
+    if (timeStr) params.set('time', timeStr)
+    if (categoryParam) params.set('category', categoryParam)
+    const returnUrl = `/instrutor/${id}/agendar${params.toString() ? `?${params.toString()}` : ''}`
+    router.push(`/onboarding?role=student&returnUrl=${encodeURIComponent(returnUrl)}`)
     return false
   }
 

@@ -196,6 +196,7 @@ function OnboardingContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const role = searchParams.get('role') || 'student'
+  const returnUrl = searchParams.get('returnUrl') || ''
   const isInstructor = role === 'instructor'
 
   const [loading, setLoading] = useState(false)
@@ -996,7 +997,7 @@ function OnboardingContent() {
       </p>
 
       {done ? (
-        <StudentDoneScreen onContinue={() => router.push('/instrutores')} />
+        <StudentDoneScreen onContinue={() => router.push(returnUrl || '/instrutores')} />
       ) : (
         <form onSubmit={studentForm.handleSubmit(handleStudentSubmit)} className="space-y-4">
           <div>
