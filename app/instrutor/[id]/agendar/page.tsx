@@ -35,7 +35,6 @@ function CheckoutContent() {
   const [payMethod, setPayMethod] = useState<PayMethod>('pix')
   const [instructor, setInstructor] = useState<InstructorCard | null>(null)
   const [loadingInstructor, setLoadingInstructor] = useState(true)
-  const [instructorError, setInstructorError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [pixCopied, setPixCopied] = useState(false)
   const [pixIntentId, setPixIntentId] = useState<string | null>(null)
@@ -209,7 +208,6 @@ function CheckoutContent() {
         if (!mounted) return
 
         if (error || !data) {
-          setInstructorError(`query error: ${JSON.stringify(error)} | data: ${JSON.stringify(data)}`)
           setInstructor(null)
           return
         }
@@ -243,11 +241,8 @@ function CheckoutContent() {
           min_advance_booking_hours: Number(data.min_advance_booking_hours || 2),
           cancellation_notice_hours: Number(data.cancellation_notice_hours || 24),
         })
-      } catch (err) {
-        if (mounted) {
-          setInstructorError(`exception: ${(err as Error)?.message || String(err)}`)
-          setInstructor(null)
-        }
+      } catch {
+        if (mounted) setInstructor(null)
       } finally {
         if (mounted) setLoadingInstructor(false)
       }
@@ -665,9 +660,6 @@ function CheckoutContent() {
             <p className="mt-2 text-sm text-gray-500">
               Nao foi possivel carregar os dados deste instrutor para concluir o agendamento.
             </p>
-            {instructorError && (
-              <pre className="mt-2 rounded bg-red-50 p-2 text-xs text-red-700 break-all whitespace-pre-wrap">{instructorError}</pre>
-            )}
             <Link
               href={`/instrutor/${id}`}
               className="mt-6 inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
@@ -808,18 +800,11 @@ function CheckoutContent() {
                     </span>
                   </button>
 
-                  <button
-                    onClick={() => setPayMethod('card')}
-                    className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-colors ${
-                      payMethod === 'card' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <CreditCard className={`h-7 w-7 ${payMethod === 'card' ? 'text-blue-600' : 'text-gray-400'}`} />
-                    <span className={`text-sm font-bold ${payMethod === 'card' ? 'text-blue-700' : 'text-gray-600'}`}>
-                      Cartao de credito
-                    </span>
-                    <span className="text-xs font-medium text-gray-400">*sujeito a taxas</span>
-                  </button>
+                  <div className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-gray-200 p-4 opacity-50 cursor-not-allowed">
+                    <CreditCard className="h-7 w-7 text-gray-300" />
+                    <span className="text-sm font-bold text-gray-400">Cartao de credito</span>
+                    <span className="text-xs font-medium text-gray-400 text-center">Em breve</span>
+                  </div>
                 </div>
               </div>
 
