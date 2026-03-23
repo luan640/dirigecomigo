@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 const profileSchema = z.object({
   full_name: z.string().min(3, 'Nome muito curto'),
@@ -16,31 +17,81 @@ const profileSchema = z.object({
 })
 type ProfileFormData = z.infer<typeof profileSchema>
 
-const DEMO_STUDENT = {
-  full_name: 'Aluno Demonstração',
-  email: 'aluno@demo.com',
-  phone: '(85) 99999-0000',
-  city: 'Fortaleza',
-  state: 'CE',
-}
-
 export default function StudentProfilePage() {
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
 
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors, isDirty },
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
-    defaultValues: DEMO_STUDENT,
+    defaultValues: { full_name: '', email: '', phone: '', city: '', state: '' },
   })
 
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        setUserId(user.id)
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: profile } = await (supabase as any)
+          .from('profiles')
+          .select('full_name, phone, city, state')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        reset({
+          full_name: profile?.full_name || '',
+          email: user.email || '',
+          phone: profile?.phone || '',
+          city: profile?.city || '',
+          state: profile?.state || '',
+        })
+      } catch {
+        // silently fail, form stays empty
+      } finally {
+        setLoading(false)
+      }
+    }
+    void load()
+  }, [reset])
+
   const onSubmit = async (data: ProfileFormData) => {
+    if (!userId) return
     setSaving(true)
-    await new Promise(r => setTimeout(r, 800))
-    setSaving(false)
-    toast.success('Perfil atualizado com sucesso!')
+    try {
+      const supabase = createClient()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from('profiles')
+        .update({ full_name: data.full_name, phone: data.phone, city: data.city, state: data.state })
+        .eq('id', userId)
+
+      if (error) throw new Error(error.message)
+      toast.success('Perfil atualizado com sucesso!')
+      reset(data)
+    } catch (err) {
+      toast.error((err as Error).message || 'Erro ao salvar perfil.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 text-gray-400 py-8">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        Carregando perfil...
+      </div>
+    )
   }
 
   return (
@@ -52,7 +103,7 @@ export default function StudentProfilePage() {
           <input {...register('full_name')} className={inputCls} />
         </Field>
         <Field label="E-mail" error={errors.email?.message}>
-          <input {...register('email')} type="email" className={inputCls} />
+          <input {...register('email')} type="email" className={inputCls} disabled />
         </Field>
         <Field label="Telefone" error={errors.phone?.message}>
           <input {...register('phone')} placeholder="(85) 99999-0000" className={inputCls} />
@@ -78,7 +129,7 @@ export default function StudentProfilePage() {
   )
 }
 
-const inputCls = 'w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
+const inputCls = 'w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400'
 
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
