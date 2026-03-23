@@ -30,7 +30,9 @@
       "Bash(npm run:*)",
       "Bash(node -e \":*)",
       "Bash(node -e \"console.log\\(require\\(''./node_modules/next/package.json''\\).version\\)\")",
-      "Bash(node -e \"const pkg = require\\(''''./package.json''''\\); console.log\\(JSON.stringify\\({...pkg.dependencies, ...pkg.devDependencies}, null, 2\\)\\)\")"
+      "Bash(node -e \"const pkg = require\\(''''./package.json''''\\); console.log\\(JSON.stringify\\({...pkg.dependencies, ...pkg.devDependencies}, null, 2\\)\\)\")",
+      "Bash(node -e \"console.log\\(require\\(''./node_modules/@supabase/ssr/package.json''\\).version\\)\")",
+      "Bash(python3 -m json.tool)"
     ]
   }
 }
