@@ -2,7 +2,7 @@ import { createHmac } from 'crypto'
 import { NextResponse } from 'next/server'
 import { MercadoPagoConfig, Payment, PreApproval } from 'mercadopago'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { persistMercadoPagoPayment } from '@/lib/payments/mercadoPagoPersistence'
+import { persistMercadoPagoPayment, createBookingFromPaymentIfMissing } from '@/lib/payments/mercadoPagoPersistence'
 import { syncPreapprovalToSubscription } from '@/lib/payments/mercadoPagoSubscription'
 
 function mapMercadoPagoStatus(status?: string): 'pending' | 'processing' | 'paid' | 'failed' | 'refunded' {
@@ -65,14 +65,24 @@ export async function POST(req: Request) {
 
       const paymentClient = new Payment(new MercadoPagoConfig({ accessToken: paymentsAccessToken }))
       const mpPayment = await paymentClient.get({ id: resourceId })
-      await persistMercadoPagoPayment({
+      const mappedStatus = mapMercadoPagoStatus(mpPayment.status)
+      const persistInput = {
         paymentId: String(mpPayment.id || resourceId),
         amount: Number(mpPayment.transaction_amount || 0),
         currency: mpPayment.currency_id || 'BRL',
-        status: mapMercadoPagoStatus(mpPayment.status),
+        status: mappedStatus,
         metadata: (mpPayment.metadata || {}) as Record<string, unknown>,
-        payerEmail: mpPayment.payer?.email,
-      })
+        payerEmail: mpPayment.payer?.email || undefined,
+      }
+
+      if (mappedStatus === 'paid') {
+        const bookingResult = await createBookingFromPaymentIfMissing(persistInput)
+        if (bookingResult.bookingId) {
+          persistInput.metadata = { ...persistInput.metadata, bookingId: bookingResult.bookingId }
+        }
+      }
+
+      await persistMercadoPagoPayment(persistInput)
       return NextResponse.json({ ok: true })
     }
 

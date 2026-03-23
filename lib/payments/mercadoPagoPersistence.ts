@@ -138,6 +138,76 @@ export async function persistMercadoPagoPayment(input: MercadoPagoPersistInput):
   }
 }
 
+export async function createBookingFromPaymentIfMissing(input: MercadoPagoPersistInput): Promise<{ ok: boolean; bookingId?: string; error?: string }> {
+  if (input.status !== 'paid') return { ok: true }
+
+  const meta = input.metadata || {}
+  const instructorId = String(meta.instructorId || meta.instructor_id || '')
+  const dateStr = String(meta.date || '')
+  const timeStr = String(meta.time || '').slice(0, 5)
+  const slotId = String(meta.slotId || meta.slot_id || '')
+
+  if (!instructorId || !dateStr || !timeStr) return { ok: true }
+
+  const supabase = getAdminClient()
+  if (!supabase) return { ok: false, error: 'SUPABASE_SERVICE_ROLE_KEY nao configurado.' }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+
+  const studentId = await resolveStudentIdByEmail(input.payerEmail)
+  if (!studentId) return { ok: false, error: 'Nao foi possivel identificar o aluno pelo email.' }
+
+  // Check if booking already exists
+  const existing = await db
+    .from('bookings')
+    .select('id')
+    .eq('student_id', studentId)
+    .eq('instructor_id', instructorId)
+    .eq('scheduled_date', dateStr)
+    .eq('start_time', timeStr)
+    .limit(1)
+    .maybeSingle()
+
+  if (existing.data?.id) return { ok: true, bookingId: String(existing.data.id) }
+
+  const [h, m] = timeStr.split(':').map(Number)
+  const endHHMM = `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+
+  const paymentMethod = String(meta.paymentMethod || 'pix') === 'card' ? 'card' : 'pix'
+  const split = calculatePaymentSplit(input.amount, paymentMethod)
+  const normalizedSlotId = isUuid(slotId) ? slotId : null
+
+  // Ensure student row exists
+  await db.from('students').upsert({ id: studentId }, { onConflict: 'id' })
+
+  const { data, error } = await db
+    .from('bookings')
+    .insert({
+      student_id: studentId,
+      instructor_id: instructorId,
+      availability_slot_id: normalizedSlotId,
+      scheduled_date: dateStr,
+      start_time: timeStr,
+      end_time: endHHMM,
+      status: 'confirmed',
+      total_amount: input.amount,
+      platform_fee: split.platformFee,
+      instructor_net: split.instructorNet,
+    })
+    .select('id')
+    .single()
+
+  if (error || !data?.id) return { ok: false, error: error?.message || 'Falha ao criar booking.' }
+
+  const bookingId = String(data.id)
+
+  if (normalizedSlotId) {
+    await db.from('instructor_availability').update({ is_booked: true }).eq('id', normalizedSlotId)
+  }
+
+  return { ok: true, bookingId }
+}
+
 export async function linkMercadoPagoPaymentToBooking(
   input: MercadoPagoPersistInput,
 ): Promise<{ ok: boolean; error?: string }> {
