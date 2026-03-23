@@ -183,7 +183,7 @@ function StudentDoneScreen({ onContinue }: { onContinue: () => void }) {
         className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 font-semibold text-sm text-black transition-all active:scale-[0.98]"
         style={{ background: 'linear-gradient(135deg, #21a637 0%, #178a2e 100%)', boxShadow: '0 4px 16px rgba(33,166,55,0.3)' }}
       >
-        Buscar instrutores
+        Seguir
         <ChevronRight className="h-4 w-4" />
       </button>
     </div>
