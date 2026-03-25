@@ -17,6 +17,8 @@ export interface CreatePaymentParams {
   currency?: string
   description: string
   customerEmail: string
+  /** Telefone do comprador (ex: "85999999999"). Enviado como additional_info.payer.phone ao MP. */
+  customerPhone?: string
   paymentMethod?: 'card' | 'pix'
   metadata?: Record<string, string>
 }
