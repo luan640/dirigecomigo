@@ -8,11 +8,11 @@ const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
 export interface CreateBookingParams {
   student_id: string
   instructor_id: string
-  availability_id: string
-  date: string
+  availability_slot_id: string | null
+  scheduled_date: string
   start_time: string
   end_time: string
-  gross_amount: number
+  total_amount: number
   notes?: string
   payment_method?: PaymentMethod
   platform_settings?: Partial<PlatformPricingSettings> | null
@@ -37,7 +37,7 @@ export const bookingService = {
       const supabase = await createClient()
 
       const { platformFee, instructorNet } = calculatePaymentSplit(
-        params.gross_amount,
+        params.total_amount,
         params.payment_method || 'pix',
         params.platform_settings,
       )
@@ -61,7 +61,7 @@ export const bookingService = {
       await (supabase as any)
         .from('instructor_availability')
         .update({ is_booked: true })
-        .eq('id', params.availability_id)
+        .eq('id', params.availability_slot_id)
 
       return { data: { id: data.id }, error: null }
     } catch (err) {
@@ -89,7 +89,7 @@ export const bookingService = {
           instructor:instructors(*, profile:profiles(*))
         `)
         .eq('student_id', studentId)
-        .order('date', { ascending: false })
+        .order('scheduled_date', { ascending: false })
 
       if (error) throw error
       return { data: data as typeof MOCK_STUDENT_BOOKINGS, error: null }
@@ -118,7 +118,7 @@ export const bookingService = {
           student:students(*, profile:profiles(*))
         `)
         .eq('instructor_id', instructorId)
-        .order('date', { ascending: false })
+        .order('scheduled_date', { ascending: false })
 
       if (error) throw error
       return { data: data as typeof MOCK_INSTRUCTOR_BOOKINGS, error: null }

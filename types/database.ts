@@ -91,15 +91,17 @@ export interface Database {
           updated_at: string
           student_id: string
           instructor_id: string
-          availability_id: string
-          date: string
+          availability_slot_id: string | null
+          scheduled_date: string
           start_time: string
           end_time: string
           status: BookingStatus
-          gross_amount: number
+          total_amount: number
           platform_fee: number
           instructor_net: number
           notes: string | null
+          cancelled_by: string | null
+          cancellation_reason: string | null
         }
         Insert: Omit<Database['public']['Tables']['bookings']['Row'], 'created_at' | 'updated_at'>
         Update: Partial<Database['public']['Tables']['bookings']['Insert']>

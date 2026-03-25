@@ -350,19 +350,6 @@ function CheckoutContent() {
       instructor_net: payableSplit.instructorNet,
     }
 
-    const oldSchemaPayload = {
-      student_id: user.id,
-      instructor_id: normalizedInstructorId,
-      availability_id: normalizedSlotId,
-      date: dateStr,
-      start_time: startHHMM,
-      end_time: endHHMM,
-      status: 'confirmed',
-      gross_amount: payableSplit.gross,
-      platform_fee: payableSplit.platformFee,
-      instructor_net: payableSplit.instructorNet,
-    }
-
     const tryInsertNew = await db.from('bookings').insert(newSchemaPayload).select('id').single()
     if (!tryInsertNew.error && tryInsertNew.data?.id) {
       const createdBookingId = String(tryInsertNew.data.id)
@@ -379,23 +366,7 @@ function CheckoutContent() {
       return
     }
 
-    const tryInsertOld = await db.from('bookings').insert(oldSchemaPayload).select('id').single()
-    if (!tryInsertOld.error && tryInsertOld.data?.id) {
-      const createdBookingId = String(tryInsertOld.data.id)
-      await syncPaymentWithBooking(paymentIntent, String(tryInsertOld.data.id))
-      if (normalizedSlotId) await db.from('instructor_availability').update({ is_booked: true }).eq('id', normalizedSlotId)
-      if (activeCouponCode) {
-        await fetch('/api/coupons/redeem', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: activeCouponCode }),
-        })
-      }
-      queueAvailabilityBackfill(createdBookingId)
-      return
-    }
-
-    throw new Error(tryInsertOld.error?.message || tryInsertNew.error?.message || 'Falha ao criar agendamento.')
+    throw new Error(tryInsertNew.error?.message || 'Falha ao criar agendamento.')
   }, [activeCouponCode, dateStr, id, payableSplit.gross, payableSplit.instructorNet, payableSplit.platformFee, queueAvailabilityBackfill, slotId, syncPaymentWithBooking, timeStr])
 
   const handlePixConfirm = async () => {
@@ -452,6 +423,7 @@ function CheckoutContent() {
         currency: 'BRL',
         paymentMethod: 'pix',
         customerEmail,
+        customerPhone,
         description: `Aula com ${instructor?.name || 'Instrutor'} em ${dateStr} as ${timeStr}`,
         metadata: {
           bookingId,
@@ -480,13 +452,22 @@ function CheckoutContent() {
   }
 
   const handleCardPaymentCreated = async (intent: PaymentIntent) => {
+    // status 'failed': mensagem amigável já vem do backend (resolveMpRejectionMessage)
     if (intent.status === 'failed') {
-      toast.error('Pagamento recusado. Verifique os dados do cartao.')
+      toast.error('Pagamento recusado. Verifique os dados do cartão ou utilize outro método.')
+      return
+    }
+
+    // status 'processing': pagamento em análise — aguardar notificação webhook
+    if (intent.status === 'processing') {
+      toast.info('Pagamento em análise. Você será notificado quando for aprovado.')
+      await createBookingAfterPayment(intent)
+      setStep('success')
       return
     }
 
     if (intent.status !== 'paid') {
-      toast.error('O Mercado Pago nao retornou aprovacao imediata para este cartao.')
+      toast.error('Pagamento não aprovado. Tente novamente ou utilize outro método.')
       return
     }
 
@@ -798,6 +779,7 @@ function CheckoutContent() {
                 <MercadoPagoCardBrick
                   amount={payableAmount}
                   customerEmail={customerEmail}
+                  customerPhone={customerPhone}
                   description={`Aula com ${instructor.name} em ${dateStr} as ${timeStr}`}
                   metadata={{
                     bookingId,
