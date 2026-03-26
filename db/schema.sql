@@ -5,10 +5,13 @@
 
 -- ── Teardown (safe re-run) ───────────────────────────────────
 drop table if exists lesson_packages          cascade;
+drop table if exists manual_lessons           cascade;
+drop table if exists payout_requests          cascade;
 drop table if exists platform_settings        cascade;
 drop table if exists favorites                cascade;
 drop table if exists reviews                  cascade;
 drop table if exists subscriptions            cascade;
+drop table if exists payment_refunds         cascade;
 drop table if exists payments                 cascade;
 drop table if exists bookings                 cascade;
 drop table if exists instructor_availability  cascade;
@@ -21,6 +24,8 @@ drop function if exists sync_slot_booking()          cascade;
 drop function if exists increment_total_lessons()    cascade;
 drop type if exists subscription_status  cascade;
 drop type if exists payment_status       cascade;
+drop type if exists manual_lesson_status cascade;
+drop type if exists payout_request_status cascade;
 drop type if exists booking_status       cascade;
 drop type if exists vehicle_category     cascade;
 drop type if exists user_role            cascade;
@@ -33,6 +38,8 @@ create extension if not exists "pg_trgm"; -- fuzzy search
 create type user_role            as enum ('student', 'instructor', 'admin');
 create type vehicle_category     as enum ('A', 'B', 'AB', 'C', 'D', 'E');
 create type booking_status       as enum ('pending', 'confirmed', 'completed', 'cancelled', 'no_show');
+create type manual_lesson_status as enum ('completed', 'cancelled');
+create type payout_request_status as enum ('pending', 'processing', 'paid', 'rejected', 'cancelled');
 create type payment_status       as enum ('pending', 'processing', 'paid', 'failed', 'refunded');
 create type subscription_status  as enum ('active', 'expired', 'cancelled', 'trial');
 
@@ -127,6 +134,27 @@ create index bookings_student_idx    on bookings(student_id, scheduled_date);
 create index bookings_instructor_idx on bookings(instructor_id, scheduled_date);
 create index bookings_status_idx     on bookings(status);
 
+-- manual_lessons
+create table manual_lessons (
+  id                  uuid primary key default uuid_generate_v4(),
+  instructor_id       uuid not null references instructors(id) on delete cascade,
+  student_name        text not null,
+  student_phone       text,
+  category            vehicle_category not null default 'B',
+  lesson_date         date not null,
+  start_time          time not null,
+  end_time            time not null,
+  amount              numeric(10,2) not null check (amount > 0),
+  status              manual_lesson_status not null default 'completed',
+  notes               text,
+  created_at          timestamptz not null default now(),
+  updated_at          timestamptz not null default now(),
+  constraint manual_lessons_time_order check (end_time > start_time)
+);
+
+create index manual_lessons_instructor_idx on manual_lessons(instructor_id, lesson_date desc);
+create index manual_lessons_status_idx on manual_lessons(status);
+
 -- ── payments ────────────────────────────────────────────────
 create table payments (
   id                  uuid primary key default uuid_generate_v4(),
@@ -143,6 +171,40 @@ create table payments (
 );
 
 create index payments_booking_idx on payments(booking_id);
+
+create table payment_refunds (
+  id                  uuid primary key default uuid_generate_v4(),
+  payment_id          uuid not null references payments(id) on delete cascade,
+  booking_id          uuid references bookings(id) on delete set null,
+  provider            text not null default 'mercadopago',
+  provider_refund_id  text,
+  amount              numeric(10,2) not null check (amount > 0),
+  reason              text,
+  status              text not null default 'approved',
+  refunded_by         uuid references profiles(id) on delete set null,
+  metadata            jsonb,
+  created_at          timestamptz not null default now()
+);
+
+create index payment_refunds_payment_idx on payment_refunds(payment_id, created_at desc);
+create index payment_refunds_booking_idx on payment_refunds(booking_id, created_at desc);
+
+create table payout_requests (
+  id                  uuid primary key default uuid_generate_v4(),
+  instructor_id       uuid not null references instructors(id) on delete cascade,
+  amount              numeric(10,2) not null check (amount > 0),
+  status              payout_request_status not null default 'pending',
+  notes               text,
+  admin_notes         text,
+  requested_at        timestamptz not null default now(),
+  processed_at        timestamptz,
+  processed_by        uuid references profiles(id) on delete set null,
+  created_at          timestamptz not null default now(),
+  updated_at          timestamptz not null default now()
+);
+
+create index payout_requests_instructor_idx on payout_requests(instructor_id, requested_at desc);
+create index payout_requests_status_idx on payout_requests(status, requested_at desc);
 
 -- ── subscriptions ───────────────────────────────────────────
 create table subscriptions (
@@ -222,6 +284,8 @@ $$;
 create trigger profiles_updated_at    before update on profiles    for each row execute procedure touch_updated_at();
 create trigger instructors_updated_at before update on instructors for each row execute procedure touch_updated_at();
 create trigger bookings_updated_at    before update on bookings    for each row execute procedure touch_updated_at();
+create trigger manual_lessons_updated_at before update on manual_lessons for each row execute procedure touch_updated_at();
+create trigger payout_requests_updated_at before update on payout_requests for each row execute procedure touch_updated_at();
 create trigger subscriptions_updated_at before update on subscriptions for each row execute procedure touch_updated_at();
 create trigger platform_settings_updated_at before update on platform_settings for each row execute procedure touch_updated_at();
 create trigger packages_updated_at      before update on lesson_packages for each row execute procedure touch_updated_at();
@@ -280,7 +344,10 @@ alter table students                 enable row level security;
 alter table instructors              enable row level security;
 alter table instructor_availability  enable row level security;
 alter table bookings                 enable row level security;
+alter table manual_lessons           enable row level security;
+alter table payout_requests          enable row level security;
 alter table payments                 enable row level security;
+alter table payment_refunds          enable row level security;
 alter table subscriptions            enable row level security;
 alter table reviews                  enable row level security;
 alter table favorites                enable row level security;
@@ -306,11 +373,27 @@ create policy "avail_instructor"   on instructor_availability for all
 create policy "bookings_access" on bookings for all
   using (auth.uid() = student_id or auth.uid() = instructor_id);
 
+create policy "manual_lessons_instructor" on manual_lessons for all
+  using (auth.uid() = instructor_id);
+
+create policy "payout_requests_instructor_select" on payout_requests for select
+  using (auth.uid() = instructor_id);
+
+create policy "payout_requests_instructor_insert" on payout_requests for insert
+  with check (auth.uid() = instructor_id);
+
 -- payments: tied to a booking the user is part of
 create policy "payments_access" on payments for select
   using (exists (
     select 1 from bookings b
     where b.id = payments.booking_id
+      and (b.student_id = auth.uid() or b.instructor_id = auth.uid())
+  ));
+
+create policy "payment_refunds_access" on payment_refunds for select
+  using (exists (
+    select 1 from bookings b
+    where b.id = payment_refunds.booking_id
       and (b.student_id = auth.uid() or b.instructor_id = auth.uid())
   ));
 

@@ -7,12 +7,11 @@ import { DEFAULT_PLATFORM_PRICING_SETTINGS, normalizePlatformPricingSettings } f
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { formatCurrency, formatDate } from '@/utils/format'
-import { VEHICLE_CATEGORY_LABELS } from '@/constants/pricing'
 import { generateScheduleWindow, toMinutes, toTimeLabel } from '@/lib/schedule'
 import { getSaoPauloNow, getSaoPauloToday, parseDateString } from '@/lib/timezone'
 import Navbar from '@/components/layout/Navbar'
 import BookingSection from '@/components/ui/PublicBookingSection'
-import type { AvailabilitySlot } from '@/types'
+import type { AvailabilitySlot, LessonPackage } from '@/types'
 
 const CAT_CONFIG: Record<string, { label: string; color: string }> = {
   A: { label: 'Moto (Cat. A)', color: 'border border-orange-200 bg-orange-100 text-orange-700' },
@@ -92,7 +91,7 @@ async function loadInstructorProfileData(id: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const adminDb = (getAdminDb() || supabase) as any
 
-  const [availabilityResult, bookingResult, instructorMetaResult, platformSettingsResult] = await Promise.all([
+  const [availabilityResult, bookingResult, instructorMetaResult, platformSettingsResult, lessonPackagesResult] = await Promise.all([
     supabase
       .from('instructor_availability')
       .select('id,date,start_time,end_time,is_booked')
@@ -115,12 +114,28 @@ async function loadInstructorProfileData(id: string) {
       .select('platform_fee_percent,pix_fee_percent,card_fee_percent')
       .eq('key', 'default')
       .maybeSingle(),
+    supabase
+      .from('lesson_packages')
+      .select('id,instructor_id,name,description,lessons_count,price,category,is_active')
+      .eq('instructor_id', id)
+      .eq('is_active', true)
+      .order('lessons_count', { ascending: true }),
   ])
 
   const availabilityRows = availabilityResult.data
   const bookingRows = bookingResult.data
   const instructorMeta = (instructorMetaResult as { data: InstructorMetaRow | null; error: Error | null }).data
   const platformSettings = normalizePlatformPricingSettings(platformSettingsResult.data || DEFAULT_PLATFORM_PRICING_SETTINGS)
+  const lessonPackages = (Array.isArray(lessonPackagesResult.data) ? lessonPackagesResult.data : []).map((item) => ({
+    id: String(item.id),
+    instructor_id: String(item.instructor_id),
+    name: String(item.name || ''),
+    description: item.description ? String(item.description) : null,
+    lessons_count: Number(item.lessons_count || 0),
+    price: Number(item.price || 0),
+    category: String(item.category || 'B') as LessonPackage['category'],
+    is_active: Boolean(item.is_active),
+  })) satisfies LessonPackage[]
 
   const safeAvailabilityRows: AvailabilityRow[] = Array.isArray(availabilityRows) ? availabilityRows : []
   const safeBookingRows: BookingRow[] = Array.isArray(bookingRows) ? bookingRows : []
@@ -237,12 +252,13 @@ async function loadInstructorProfileData(id: string) {
     availability,
     memberSince: String(instructorMeta?.created_at || '').slice(0, 10) || null,
     platformSettings,
+    lessonPackages,
   }
 }
 
 export default async function InstructorProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const { instructor, reviews, availability, memberSince, platformSettings } = await loadInstructorProfileData(id)
+  const { instructor, reviews, availability, memberSince, platformSettings, lessonPackages } = await loadInstructorProfileData(id)
   if (!instructor) notFound()
 
   const platformFeeAmount =
@@ -418,6 +434,7 @@ export default async function InstructorProfilePage({ params }: { params: Promis
                   instructor={instructor}
                   availability={availability}
                   platformSettings={platformSettings}
+                  lessonPackages={lessonPackages}
                 />
               </div>
             </div>

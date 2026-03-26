@@ -97,7 +97,10 @@ export async function POST(req: Request) {
       amount: Number(mpPayment.transaction_amount || amount),
       currency: mpPayment.currency_id || 'BRL',
       status: intent.status,
-      metadata: (mpPayment.metadata || metadata) as Record<string, unknown>,
+      metadata: {
+        ...(mpPayment.metadata || metadata),
+        payment_method_id: 'pix',
+      } as Record<string, unknown>,
       payerEmail: customerEmail,
     })
 

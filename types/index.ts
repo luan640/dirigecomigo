@@ -11,6 +11,7 @@ export type Payment = Database['public']['Tables']['payments']['Row']
 export type Subscription = Database['public']['Tables']['subscriptions']['Row']
 export type PlatformSettings = Database['public']['Tables']['platform_settings']['Row']
 export type Review = Database['public']['Tables']['reviews']['Row']
+export type LessonPackageDB = Database['public']['Tables']['lesson_packages']['Row']
 
 // Enriched types used throughout the app
 export interface InstructorWithProfile extends InstructorDB {
@@ -87,17 +88,6 @@ export interface PaymentIntent {
   pix_qr_code?: string
   pix_qr_code_base64?: string
   expires_at?: string
-}
-
-export interface LessonPackage {
-  id: string
-  instructor_id: string
-  name: string
-  description: string | null
-  lessons_count: number
-  price: number
-  category: VehicleCategory
-  is_active: boolean
 }
 
 export interface LessonPackage {

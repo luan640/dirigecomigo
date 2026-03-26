@@ -30,9 +30,11 @@ export default function Navbar() {
   useEffect(() => {
     if (DEMO_MODE) return
     const supabase = createClient()
+    let mounted = true
 
     const loadProfile = async (userId: string, email?: string) => {
       const { data: profile } = await supabase.from('profiles').select('full_name, role').eq('id', userId).maybeSingle() as { data: { full_name: string | null; role: string | null } | null }
+      if (!mounted) return
       if (profile) {
         setUser({ name: profile.full_name || email?.split('@')[0] || 'Usuário', role: (profile.role as NavUser['role']) || 'student' })
       } else {
@@ -40,15 +42,26 @@ export default function Navbar() {
       }
     }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) {
-        loadProfile(session.user.id, session.user.email ?? undefined)
-      } else {
+    void supabase.auth.getUser().then(({ data: { user: authUser } }) => {
+      if (authUser) {
+        void loadProfile(authUser.id, authUser.email ?? undefined)
+      } else if (mounted) {
         setUser(null)
       }
     })
 
-    return () => subscription.unsubscribe()
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        void loadProfile(session.user.id, session.user.email ?? undefined)
+      } else {
+        if (mounted) setUser(null)
+      }
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   const handleSignOut = async () => {

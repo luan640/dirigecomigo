@@ -235,7 +235,7 @@ export async function linkMercadoPagoPaymentToBooking(
   }
 
   const booking = bookingLookup.data as BookingSnapshot
-  const amount = Number(booking.total_amount || input.amount || 0)
+  const amount = Number(input.amount || booking.total_amount || 0)
   const paymentMethod = String(input.metadata?.paymentMethod || 'pix') === 'card' ? 'card' : 'pix'
   const split = calculatePaymentSplit(amount, paymentMethod)
 

@@ -2,18 +2,21 @@ import { redirect } from 'next/navigation'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { formatCurrency } from '@/utils/format'
+import AdminTransactionsTable, { type AdminTransactionRow } from './AdminTransactionsTable'
 
 type AdminProfileRow = {
   id: string
   full_name?: string
   email?: string
 }
+
 type AdminRoleLookup = {
   role?: string | null
 }
 
 type PaymentRecord = Record<string, unknown>
 type BookingRecord = Record<string, unknown>
+type RefundRecord = Record<string, unknown>
 
 async function getAdminRole() {
   const { createClient } = await import('@/lib/supabase/server')
@@ -94,6 +97,23 @@ function normalizeStatus(status: string) {
   }
 }
 
+function normalizeBookingStatus(status: string) {
+  switch (status) {
+    case 'confirmed':
+      return { label: 'Confirmada', classes: 'bg-emerald-100 text-emerald-700' }
+    case 'completed':
+      return { label: 'Concluida', classes: 'bg-blue-100 text-blue-700' }
+    case 'pending':
+      return { label: 'Pendente', classes: 'bg-amber-100 text-amber-700' }
+    case 'cancelled':
+      return { label: 'Cancelada', classes: 'bg-red-100 text-red-700' }
+    case 'no_show':
+      return { label: 'No-show', classes: 'bg-slate-200 text-slate-700' }
+    default:
+      return { label: status || '-', classes: 'bg-slate-100 text-slate-700' }
+  }
+}
+
 type ProviderStatusInfo = {
   status: string
   statusDetail: string
@@ -141,9 +161,14 @@ function formatDateTime(value: string) {
   return date.toLocaleString('pt-BR')
 }
 
-function shortId(value: string) {
-  if (!value) return '-'
-  return value.length > 18 ? `${value.slice(0, 8)}...${value.slice(-6)}` : value
+function formatLessonSlot(dateValue: string, startTime: string, endTime: string) {
+  if (!dateValue) return '-'
+  const normalizedDate = dateValue.length <= 10 ? `${dateValue}T00:00:00` : dateValue
+  const date = new Date(normalizedDate)
+  const label = Number.isNaN(date.getTime()) ? dateValue : date.toLocaleDateString('pt-BR')
+  const start = startTime ? startTime.slice(0, 5) : '--:--'
+  const end = endTime ? endTime.slice(0, 5) : '--:--'
+  return `${label} - ${start} - ${end}`
 }
 
 function SummaryCard({ title, value, hint }: { title: string; value: string; hint: string }) {
@@ -163,7 +188,7 @@ export default async function AdminTransactionsPage() {
   const service = getServiceClient()
   if (!service) {
     return (
-      <div className="mx-auto max-w-5xl rounded-xl border border-red-200 bg-white p-6">
+      <div className="w-full rounded-xl border border-red-200 bg-white p-6">
         <h1 className="text-2xl font-extrabold text-gray-900">Pagamentos</h1>
         <p className="mt-2 text-sm text-red-700">
           SUPABASE_SERVICE_ROLE_KEY nao configurado. Nao foi possivel carregar os pagamentos administrativos.
@@ -174,15 +199,18 @@ export default async function AdminTransactionsPage() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = service as any
-  const [{ data: profiles }, { data: bookings }, { data: payments }] = await Promise.all([
+  const [{ data: profiles }, { data: bookings }, { data: payments }, { data: refunds }] = await Promise.all([
     db.from('profiles').select('id,full_name,email'),
     db.from('bookings').select('*'),
     db.from('payments').select('*').order('created_at', { ascending: false }),
+    db.from('payment_refunds').select('*').order('created_at', { ascending: false }),
   ])
 
   const profileRows: AdminProfileRow[] = Array.isArray(profiles) ? profiles : []
   const bookingRows: BookingRecord[] = Array.isArray(bookings) ? bookings : []
   const paymentRows: PaymentRecord[] = Array.isArray(payments) ? payments : []
+  const refundRows: RefundRecord[] = Array.isArray(refunds) ? refunds : []
+
   const mercadoPagoProviderIds = paymentRows
     .map(payment => {
       const provider = asString(payment.provider).toLowerCase()
@@ -194,8 +222,17 @@ export default async function AdminTransactionsPage() {
 
   const profileMap = new Map(profileRows.map(profile => [profile.id, profile]))
   const bookingMap = new Map(bookingRows.map(booking => [asString(booking.id), booking]))
+  const refundMap = new Map<string, RefundRecord[]>()
 
-  const rows = paymentRows.map(payment => {
+  for (const refund of refundRows) {
+    const paymentId = asString(refund.payment_id)
+    if (!paymentId) continue
+    const current = refundMap.get(paymentId) || []
+    current.push(refund)
+    refundMap.set(paymentId, current)
+  }
+
+  const rows: AdminTransactionRow[] = paymentRows.map(payment => {
     const bookingId = asString(payment.booking_id)
     const booking = bookingMap.get(bookingId)
     const studentId = asString(payment.student_id) || asString(booking?.student_id)
@@ -207,142 +244,89 @@ export default async function AdminTransactionsPage() {
     const amount = asNumber(payment.amount || booking?.total_amount || booking?.gross_amount)
     const providerPaymentId = asString(payment.provider_payment_id) || asString(payment.provider_reference)
     const status = asString(payment.status).toLowerCase()
+    const provider = asString(payment.provider).toLowerCase() || '-'
     const providerStatus = providerStatusMap.get(providerPaymentId)
+    const refundHistory = refundMap.get(asString(payment.id)) || []
+    const refundedAmount = refundHistory.reduce((sum, refund) => sum + asNumber(refund.amount), 0)
+    const remainingRefundableAmount = Math.max(0, amount - refundedAmount)
+    const bookingStatus = asString(booking?.status).toLowerCase()
+    const providerStatusValue = providerStatus?.status || '-'
+    const canRefund =
+      provider === 'mercadopago' &&
+      !!providerPaymentId &&
+      remainingRefundableAmount > 0 &&
+      ['paid', 'approved'].includes(status) &&
+      !['refunded', 'charged_back'].includes(providerStatusValue)
 
     return {
       id: asString(payment.id),
       bookingId,
-      provider: asString(payment.provider) || '-',
+      provider,
       providerPaymentId,
       amount,
+      refundedAmount,
+      remainingRefundableAmount,
+      refundCount: refundHistory.length,
+      latestRefundAtLabel: formatDateTime(asString(refundHistory[0]?.created_at)),
+      latestRefundReason: asString(refundHistory[0]?.reason),
       status,
       statusUi: normalizeStatus(status),
-      providerStatusUi: normalizeStatus(providerStatus?.status || ''),
+      providerStatusUi: normalizeStatus(providerStatusValue),
+      bookingStatusUi: normalizeBookingStatus(bookingStatus),
       method: normalizePaymentMethod(payment, booking),
       studentName: student?.full_name || 'Sem nome',
       studentEmail: student?.email || '-',
       instructorName: instructor?.full_name || 'Sem instrutor',
-      providerStatusLabel: providerStatus?.status || '-',
+      lessonLabel: formatLessonSlot(
+        asString(booking?.scheduled_date) || asString(booking?.date),
+        asString(booking?.start_time),
+        asString(booking?.end_time),
+      ),
+      bookingStatusLabel: bookingStatus || '-',
       providerStatusDetail: providerStatus?.statusDetail || '-',
       providerLiveMode: providerStatus?.liveMode,
       providerStatusError: providerStatus?.error || '',
-      createdAt,
-      paidAt,
       createdAtLabel: formatDateTime(createdAt),
       paidAtLabel: formatDateTime(paidAt),
+      canRefund,
     }
   })
 
   const totalPaid = rows
     .filter(row => row.status === 'paid' || row.status === 'approved')
     .reduce((sum, row) => sum + row.amount, 0)
-
+  const totalRefunded = rows.reduce((sum, row) => sum + row.refundedAmount, 0)
   const paidCount = rows.filter(row => row.status === 'paid' || row.status === 'approved').length
   const pendingCount = rows.filter(row => row.status === 'pending' || row.status === 'processing').length
   const failedCount = rows.filter(row => row.status === 'failed' || row.status === 'rejected' || row.status === 'cancelled').length
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="w-full max-w-none space-y-6">
       <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold text-gray-900">Pagamentos realizados</h1>
+          <h1 className="text-3xl font-extrabold text-gray-900">Pagamentos e aulas</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Auditoria dos pagamentos salvos no sistema com referencia do provedor e status real de cobranca.
+            Visao operacional das aulas pagas, do status real no Mercado Pago e dos reembolsos feitos pelo admin.
           </p>
         </div>
         <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-          A coluna <span className="font-semibold">Status no provedor</span> consulta o pagamento direto no Mercado Pago.
+          O botao <span className="font-semibold">Reembolsar</span> usa o <span className="font-semibold">provider_payment_id</span>
+          {' '}e registra auditoria em <span className="font-semibold">payment_refunds</span>.
         </div>
       </div>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <SummaryCard title="Total de registros" value={String(rows.length)} hint="Pagamentos persistidos na tabela payments." />
         <SummaryCard title="Pagos" value={String(paidCount)} hint="Pagamentos marcados como pagos/aprovados." />
         <SummaryCard title="Pendentes" value={String(pendingCount)} hint="Pendentes ou em processamento." />
         <SummaryCard title="Valor pago" value={formatCurrency(totalPaid)} hint="Soma dos pagamentos aprovados." />
+        <SummaryCard title="Reembolsado" value={formatCurrency(totalRefunded)} hint="Total auditado na tabela payment_refunds." />
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-        <div className="border-b border-gray-100 px-5 py-4">
-          <h2 className="font-bold text-gray-900">Lista de pagamentos</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            {failedCount > 0 ? `${failedCount} pagamentos com falha tambem aparecem aqui para auditoria.` : 'Todos os registros encontrados aparecem nesta tabela.'}
-          </p>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-gray-50 text-gray-600">
-              <tr>
-                <th className="px-4 py-3 text-left font-semibold">Status</th>
-                <th className="px-4 py-3 text-left font-semibold">Valor</th>
-                <th className="px-4 py-3 text-left font-semibold">Metodo</th>
-                <th className="px-4 py-3 text-left font-semibold">Aluno</th>
-                <th className="px-4 py-3 text-left font-semibold">Instrutor</th>
-                <th className="px-4 py-3 text-left font-semibold">Pagamento provedor</th>
-                <th className="px-4 py-3 text-left font-semibold">Status no provedor</th>
-                <th className="px-4 py-3 text-left font-semibold">Reserva</th>
-                <th className="px-4 py-3 text-left font-semibold">Criado em</th>
-                <th className="px-4 py-3 text-left font-semibold">Pago em</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
-                <tr>
-                  <td className="px-4 py-6 text-gray-500" colSpan={10}>
-                    Nenhum pagamento encontrado.
-                  </td>
-                </tr>
-              ) : (
-                rows.map(row => (
-                  <tr key={row.id} className="border-t border-gray-100 align-top">
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${row.statusUi.classes}`}>
-                        {row.statusUi.label}
-                      </span>
-                      <div className="mt-2 text-xs text-gray-500">{row.provider || '-'}</div>
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-gray-900">{formatCurrency(row.amount)}</td>
-                    <td className="px-4 py-3 text-gray-700">{row.method}</td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">{row.studentName}</div>
-                      <div className="text-xs text-gray-500">{row.studentEmail}</div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-700">{row.instructorName}</td>
-                    <td className="px-4 py-3">
-                      <div className="font-mono text-xs text-gray-800">{shortId(row.providerPaymentId)}</div>
-                      <div className="mt-1 font-mono text-[11px] text-gray-400">{row.providerPaymentId || '-'}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {row.provider === 'mercadopago' ? (
-                        <>
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${row.providerStatusUi.classes}`}
-                          >
-                            {row.providerStatusUi.label}
-                          </span>
-                          <div className="mt-2 text-xs text-gray-500">detalhe: {row.providerStatusDetail}</div>
-                          <div className="mt-1 text-xs text-gray-400">
-                            ambiente: {row.providerLiveMode === null ? '-' : row.providerLiveMode ? 'producao' : 'teste'}
-                          </div>
-                          {row.providerStatusError ? (
-                            <div className="mt-1 text-xs text-red-600">{row.providerStatusError}</div>
-                          ) : null}
-                        </>
-                      ) : (
-                        <span className="text-xs text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-gray-500">{shortId(row.bookingId)}</td>
-                    <td className="px-4 py-3 text-gray-600">{row.createdAtLabel}</td>
-                    <td className="px-4 py-3 text-gray-600">{row.paidAtLabel}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <AdminTransactionsTable
+        initialRows={rows}
+        failedCount={failedCount}
+      />
     </div>
   )
 }

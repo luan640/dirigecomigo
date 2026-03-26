@@ -64,7 +64,7 @@ export default async function InstrutoresAdminPage() {
   const service = getServiceClient()
   if (!service) {
     return (
-      <div className="max-w-5xl mx-auto bg-white border border-red-200 rounded-xl p-6">
+      <div className="w-full rounded-xl border border-red-200 bg-white p-6">
         <h1 className="text-2xl font-extrabold text-gray-900">Instrutores</h1>
         <p className="text-sm text-red-700 mt-2">
           SUPABASE_SERVICE_ROLE_KEY nao configurado. Nao foi possivel carregar dados administrativos.
@@ -120,7 +120,7 @@ export default async function InstrutoresAdminPage() {
 
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="w-full max-w-none space-y-6">
       <div>
         <h1 className="text-3xl font-extrabold text-gray-900">Instrutores</h1>
         <p className="text-sm text-gray-500 mt-1">Gerencie os cadastros de instrutores da plataforma.</p>

@@ -1,10 +1,8 @@
+import { DollarSign, TrendingUp, Users } from 'lucide-react'
 import Link from 'next/link'
-import { ArrowRight, DollarSign, TrendingUp, Users } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-
-import BookingActionButtons from '@/components/ui/BookingActionButtons'
-import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/constants/pricing'
+import DashboardUpcomingLessons from './DashboardUpcomingLessons'
 import { formatCurrency } from '@/utils/format'
 
 type BookingRow = {
@@ -23,6 +21,16 @@ type ProfileRow = {
   id?: string
   full_name?: string
   phone?: string
+}
+
+type ManualLessonRow = {
+  id?: string
+  student_name?: string
+  lesson_date?: string
+  start_time?: string
+  end_time?: string
+  amount?: number | string
+  status?: string
 }
 
 type DashboardBooking = {
@@ -73,8 +81,17 @@ export default async function PainelDashboardPage() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
-  const [{ data: bookings }] = await Promise.all([
-    db.from('bookings').select('id,student_id,scheduled_date,start_time,end_time,status,instructor_net,platform_fee,total_amount').eq('instructor_id', user.id).order('created_at', { ascending: true }),
+  const [{ data: bookings }, { data: manualLessons }] = await Promise.all([
+    db.from('bookings')
+      .select('id,student_id,scheduled_date,start_time,end_time,status,instructor_net,platform_fee,total_amount')
+      .eq('instructor_id', user.id)
+      .order('created_at', { ascending: true }),
+    db.from('manual_lessons')
+      .select('id,student_name,lesson_date,start_time,end_time,amount,status')
+      .eq('instructor_id', user.id)
+      .order('lesson_date', { ascending: false })
+      .order('start_time', { ascending: false })
+      .limit(5),
   ])
 
   const studentIds = Array.from(
@@ -102,29 +119,31 @@ export default async function PainelDashboardPage() {
         .map((row: BookingRow) => normalizeBooking(row, profileMap.get(String(row.student_id || ''))))
         .filter((booking: DashboardBooking) => booking.date)
     : []
-  const upcoming = bookingRows.filter(booking => booking.status === 'confirmed' || booking.status === 'pending')
+
+  const upcoming = bookingRows
+    .filter(booking => booking.status === 'confirmed' || booking.status === 'pending')
     .sort((a, b) => new Date(`${a.date}T${a.start_time}`).getTime() - new Date(`${b.date}T${b.start_time}`).getTime())
+
   const completed = bookingRows.filter(booking => booking.status === 'completed')
-  const todayMonth = format(new Date(), 'yyyy-MM')
+  const todayMonth = new Date().toISOString().slice(0, 7)
   const monthCompleted = completed.filter(booking => booking.date.startsWith(todayMonth))
+  const manualLessonRows: ManualLessonRow[] = Array.isArray(manualLessons) ? manualLessons : []
+  const completedManualLessons = manualLessonRows.filter(lesson => String(lesson.status || 'completed') === 'completed')
+  const monthManualLessons = completedManualLessons.filter(lesson => String(lesson.lesson_date || '').startsWith(todayMonth))
 
   const totalNetThisMonth = monthCompleted.reduce((acc, booking) => acc + booking.instructor_net, 0)
+  const manualRevenueThisMonth = monthManualLessons.reduce((acc, lesson) => acc + toNumber(lesson.amount), 0)
   const completedLessons = completed.length
   const stats = [
-    { label: 'Receita do mês', value: formatCurrency(totalNetThisMonth), icon: DollarSign, color: 'text-emerald-700', bg: 'bg-emerald-50' },
-    { label: 'Aulas concluídas', value: String(completedLessons), icon: TrendingUp, color: 'text-blue-700', bg: 'bg-blue-50' },
-    { label: 'Próximas aulas', value: String(upcoming.length), icon: Users, color: 'text-purple-700', bg: 'bg-purple-50' },
-    // { label: 'Nota media', value: avgRating > 0 ? `${avgRating.toFixed(1)}*` : '-', icon: Star, color: 'text-amber-700', bg: 'bg-amber-50' },
+    { label: 'Receita da plataforma no mes', value: formatCurrency(totalNetThisMonth), icon: DollarSign, color: 'text-emerald-700', bg: 'bg-emerald-50' },
+    { label: 'Receita externa no mes', value: formatCurrency(manualRevenueThisMonth), icon: DollarSign, color: 'text-amber-700', bg: 'bg-amber-50' },
+    { label: 'Aulas concluidas na plataforma', value: String(completedLessons), icon: TrendingUp, color: 'text-blue-700', bg: 'bg-blue-50' },
+    { label: 'Proximas aulas da plataforma', value: String(upcoming.length), icon: Users, color: 'text-purple-700', bg: 'bg-purple-50' },
   ]
 
   return (
     <div className="w-full space-y-6">
-      {/* <div>
-        <h1 className="text-2xl font-extrabold text-gray-900">Olá, {firstName}!</h1>
-        <p className="mt-1 text-sm text-gray-500">Aqui está o resumo da sua atividade.</p>
-      </div> */}
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {stats.map(({ label, value, icon: Icon, color, bg }) => (
           <div key={label} className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
             <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${bg}`}>
@@ -136,47 +155,52 @@ export default async function PainelDashboardPage() {
         ))}
       </div>
 
-      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-gray-50 px-5 py-4">
-          <h2 className="font-bold text-gray-900">Próximas aulas</h2>
-          <Link href="/painel/agenda" className="flex items-center gap-1 text-sm text-blue-700 hover:underline">
-            Ver agenda <ArrowRight className="h-3.5 w-3.5" />
+      <DashboardUpcomingLessons bookings={upcoming} />
+
+      <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <div>
+            <h2 className="font-bold text-slate-900">Aulas externas recentes</h2>
+            <p className="mt-1 text-sm text-slate-500">Controle separado do que foi realizado fora da plataforma.</p>
+          </div>
+          <Link href="/painel/aulas-externas" className="text-sm font-semibold text-[#0f2f63] hover:underline">
+            Gerenciar registros
           </Link>
         </div>
-        <div className="divide-y divide-gray-50">
-          {upcoming.length === 0 ? (
-            <div className="px-5 py-8 text-center">
-              <p className="text-sm text-gray-400">Nenhuma aula agendada</p>
-              <Link href="/painel/horarios" className="mt-3 inline-block text-sm font-semibold text-blue-700 hover:underline">
-                Gerenciar horarios
-              </Link>
-            </div>
-          ) : (
-            upcoming.slice(0, 6).map((booking) => (
-              <div key={booking.id} className="flex items-center gap-4 px-5 py-4">
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">
-                  {booking.student_name.charAt(0)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-gray-900">{booking.student_name}</p>
-                  <p className="mt-0.5 text-xs text-gray-500">
-                    {format(new Date(`${booking.date}T00:00:00`), "dd 'de' MMM", { locale: ptBR })}
-                    {' '}· {booking.start_time.slice(0, 5)} - {booking.end_time.slice(0, 5)}
+
+        {manualLessonRows.length === 0 ? (
+          <div className="px-5 py-8 text-center text-sm text-slate-400">
+            Nenhuma aula externa registrada.
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {manualLessonRows.map(lesson => (
+              <div key={String(lesson.id || '')} className="flex flex-col gap-3 px-5 py-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">{String(lesson.student_name || 'Aluno')}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {String(lesson.lesson_date || '')
+                      ? format(new Date(`${String(lesson.lesson_date || '')}T00:00:00`), "dd 'de' MMM", { locale: ptBR })
+                      : '-'}
+                    {' '}· {String(lesson.start_time || '').slice(0, 5)} - {String(lesson.end_time || '').slice(0, 5)}
                   </p>
-                  <p className="mt-0.5 text-xs text-gray-400">{booking.student_phone || 'Telefone nao informado'}</p>
                 </div>
-                <div className="flex flex-shrink-0 items-center gap-3">
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${BOOKING_STATUS_COLORS[booking.status] || 'bg-gray-100 text-gray-700'}`}>
-                    {BOOKING_STATUS_LABELS[booking.status] || booking.status}
+                <div className="flex items-center gap-3">
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                    String(lesson.status || 'completed') === 'completed'
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-slate-100 text-slate-500'
+                  }`}
+                  >
+                    {String(lesson.status || 'completed') === 'completed' ? 'Externa concluida' : 'Externa cancelada'}
                   </span>
-                  <p className="text-sm font-bold text-emerald-700">{formatCurrency(booking.instructor_net)}</p>
-                  <BookingActionButtons booking={booking} />
+                  <span className="text-sm font-bold text-amber-700">{formatCurrency(toNumber(lesson.amount))}</span>
                 </div>
               </div>
-            ))
-          )}
-        </div>
-      </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   )
 }

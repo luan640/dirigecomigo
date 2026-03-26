@@ -3,7 +3,7 @@ export const PLATFORM_CONFIG = {
   // Default platform and payment-provider fees added on top of instructor net amount
   DEFAULT_PLATFORM_FEE_PERCENT: 8,
   DEFAULT_PIX_FEE_PERCENT: 0,
-  DEFAULT_CARD_FEE_PERCENT: 8,
+  DEFAULT_CARD_FEE_PERCENT: 4.98,
 
   // Monthly instructor subscription price in BRL
   INSTRUCTOR_SUBSCRIPTION_PRICE: 15.00,

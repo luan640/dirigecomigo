@@ -15,10 +15,11 @@ import { paymentService } from '@/services/paymentService'
 import { formatCurrency } from '@/utils/format'
 import { applyAmountToPaymentSplit, calculatePaymentSplit } from '@/utils/payment'
 import { DEFAULT_PLATFORM_PRICING_SETTINGS, normalizePlatformPricingSettings, type PlatformPricingSettings } from '@/lib/platformPricing'
-import type { InstructorCard, PaymentIntent } from '@/types'
+import type { InstructorCard, LessonPackage, PaymentIntent } from '@/types'
 
 type Step = 'review' | 'payment' | 'pix' | 'success'
 type PayMethod = 'card' | 'pix'
+type SelectedSlotParam = { id: string; date: string; time: string }
 
 function resolveLessonPrice(instructor: InstructorCard | null, category: string) {
   if (!instructor) return 0
@@ -51,21 +52,47 @@ function CheckoutContent() {
     final_amount: number
   } | null>(null)
   const [platformSettings, setPlatformSettings] = useState<PlatformPricingSettings>(DEFAULT_PLATFORM_PRICING_SETTINGS)
+  const [selectedPackage, setSelectedPackage] = useState<LessonPackage | null>(null)
+  const [loadingPackage, setLoadingPackage] = useState(false)
 
-  const slotId = searchParams.get('slotId') || ''
   const bookingId = searchParams.get('bookingId') || ''
-  const dateStr = searchParams.get('date') || ''
-  const timeStr = searchParams.get('time') || ''
   const categoryParam = searchParams.get('category') || ''
+  const packageId = searchParams.get('packageId') || ''
+  const selectedSlots = (() => {
+    const slots = searchParams
+      .getAll('slot')
+      .map((raw) => {
+        const [slotId, date, time] = String(raw || '').split('|')
+        return {
+          id: String(slotId || '').trim(),
+          date: String(date || '').trim(),
+          time: String(time || '').slice(0, 5),
+        }
+      })
+      .filter((slot) => slot.id && slot.date && slot.time)
+
+    if (slots.length > 0) return slots
+
+    const legacySlotId = searchParams.get('slotId') || ''
+    const legacyDate = searchParams.get('date') || ''
+    const legacyTime = (searchParams.get('time') || '').slice(0, 5)
+    return legacySlotId && legacyDate && legacyTime ? [{ id: legacySlotId, date: legacyDate, time: legacyTime }] : []
+  })() as SelectedSlotParam[]
+  const primarySlot = selectedSlots[0] || null
+  const slotId = primarySlot?.id || ''
+  const dateStr = primarySlot?.date || ''
+  const timeStr = primarySlot?.time || ''
+  const lessonsCount = selectedPackage?.lessons_count || selectedSlots.length || Math.max(1, Number(searchParams.get('lessons') || 1) || 1)
   const couponCodeFromQuery = String(searchParams.get('coupon') || '').trim().toUpperCase()
 
   const redirectToLogin = () => {
     const params = new URLSearchParams()
-    if (slotId) params.set('slotId', slotId)
     if (bookingId) params.set('bookingId', bookingId)
-    if (dateStr) params.set('date', dateStr)
-    if (timeStr) params.set('time', timeStr)
     if (categoryParam) params.set('category', categoryParam)
+    if (packageId) params.set('packageId', packageId)
+    for (const slot of selectedSlots) {
+      params.append('slot', `${slot.id}|${slot.date}|${slot.time}`)
+    }
 
     const returnUrl = `/instrutor/${id}/agendar${params.toString() ? `?${params.toString()}` : ''}`
     router.push(`/entrar?redirectTo=${encodeURIComponent(returnUrl)}`)
@@ -147,14 +174,68 @@ function CheckoutContent() {
 
     toast.error('Informe seu telefone antes de agendar a aula.')
     const params = new URLSearchParams()
-    if (slotId) params.set('slotId', slotId)
-    if (dateStr) params.set('date', dateStr)
-    if (timeStr) params.set('time', timeStr)
     if (categoryParam) params.set('category', categoryParam)
+    if (packageId) params.set('packageId', packageId)
+    for (const slot of selectedSlots) {
+      params.append('slot', `${slot.id}|${slot.date}|${slot.time}`)
+    }
     const returnUrl = `/instrutor/${id}/agendar${params.toString() ? `?${params.toString()}` : ''}`
     router.push(`/onboarding?role=student&returnUrl=${encodeURIComponent(returnUrl)}`)
     return false
   }
+
+  useEffect(() => {
+    let mounted = true
+
+    const loadLessonPackage = async () => {
+      if (!packageId) {
+        if (mounted) setSelectedPackage(null)
+        return
+      }
+
+      setLoadingPackage(true)
+      try {
+        const { createClient } = await import('@/lib/supabase/client')
+        const supabase = createClient()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data, error } = await (supabase as any)
+          .from('lesson_packages')
+          .select('id,instructor_id,name,description,lessons_count,price,category,is_active')
+          .eq('id', packageId)
+          .eq('instructor_id', id)
+          .eq('is_active', true)
+          .maybeSingle()
+
+        if (!mounted) return
+        if (error || !data) {
+          setSelectedPackage(null)
+          toast.error('Pacote nao encontrado ou indisponivel.')
+          return
+        }
+
+        setSelectedPackage({
+          id: String(data.id || ''),
+          instructor_id: String(data.instructor_id || ''),
+          name: String(data.name || ''),
+          description: data.description ? String(data.description) : null,
+          lessons_count: Number(data.lessons_count || 0),
+          price: Number(data.price || 0),
+          category: String(data.category || 'B') as LessonPackage['category'],
+          is_active: Boolean(data.is_active),
+        })
+      } catch {
+        if (mounted) setSelectedPackage(null)
+      } finally {
+        if (mounted) setLoadingPackage(false)
+      }
+    }
+
+    void loadLessonPackage()
+
+    return () => {
+      mounted = false
+    }
+  }, [id, packageId])
 
   useEffect(() => {
     let mounted = true
@@ -222,9 +303,13 @@ function CheckoutContent() {
   }, [id])
 
   const instructorPrice = resolveLessonPrice(instructor, categoryParam)
-  const split = calculatePaymentSplit(instructorPrice, payMethod, platformSettings)
+  const basePrice = selectedPackage ? selectedPackage.price : instructorPrice * lessonsCount
+  const split = calculatePaymentSplit(basePrice, payMethod, platformSettings)
+  const pixSplit = calculatePaymentSplit(basePrice, 'pix', platformSettings)
   const payableAmount = appliedCoupon?.final_amount ?? split.gross
+  const pixAmount = appliedCoupon?.final_amount ?? pixSplit.gross
   const payableSplit = applyAmountToPaymentSplit(split, payableAmount)
+  const pixSavings = Math.round((payableAmount - pixAmount) * 100) / 100
   const activeCouponCode = appliedCoupon?.code || couponCodeFromQuery
   const minAdvanceHours = instructor?.min_advance_booking_hours ?? 2
   const cancellationNoticeHours = instructor?.cancellation_notice_hours ?? 24
@@ -234,11 +319,15 @@ function CheckoutContent() {
       : `${cancellationNoticeHours} hora(s)`
 
   const isBeforeMinAdvanceWindow = () => {
-    if (!dateStr || !timeStr) return false
-    const slotStart = new Date(`${dateStr}T${timeStr.slice(0, 5)}:00`)
+    if (selectedSlots.length === 0) return false
     const cutoff = new Date(Date.now() + minAdvanceHours * 60 * 60 * 1000)
-    return slotStart.getTime() < cutoff.getTime()
+    return selectedSlots.some((slot) => {
+      const slotStart = new Date(`${slot.date}T${slot.time}:00`)
+      return slotStart.getTime() < cutoff.getTime()
+    })
   }
+
+  const hasInvalidPackageSlotCount = Boolean(selectedPackage && selectedSlots.length !== selectedPackage.lessons_count)
 
   const syncPaymentWithBooking = useCallback(
     async (paymentIntent: PaymentIntent, createdBookingId: string) => {
@@ -259,8 +348,12 @@ function CheckoutContent() {
             slotId,
             date: dateStr,
             time: timeStr,
+            slots: JSON.stringify(selectedSlots),
             instructorId: String(id),
+            packageId: selectedPackage?.id,
+            packageName: selectedPackage?.name,
             couponCode: activeCouponCode,
+            lessonsCount: String(lessonsCount),
           },
         }),
       })
@@ -270,7 +363,7 @@ function CheckoutContent() {
         throw new Error(payload?.error || 'Falha ao registrar pagamento na reserva.')
       }
     },
-    [activeCouponCode, dateStr, id, slotId, timeStr],
+    [activeCouponCode, dateStr, id, lessonsCount, selectedPackage?.id, selectedPackage?.name, selectedSlots, slotId, timeStr],
   )
 
   const queueAvailabilityBackfill = useCallback((createdBookingId: string) => {
@@ -285,7 +378,10 @@ function CheckoutContent() {
   }, [])
 
   const createBookingAfterPayment = useCallback(async (paymentIntent: PaymentIntent) => {
-    if (!dateStr || !timeStr) throw new Error('Data/horário inválidos para criar agendamento.')
+    if (selectedSlots.length === 0) throw new Error('Selecione ao menos um horário para criar o agendamento.')
+    if (selectedPackage && selectedSlots.length !== selectedPackage.lessons_count) {
+      throw new Error(`Selecione exatamente ${selectedPackage.lessons_count} horários para este pacote.`)
+    }
 
     const { createClient } = await import('@/lib/supabase/client')
     const supabase = createClient()
@@ -293,10 +389,6 @@ function CheckoutContent() {
     const user = authData.user
 
     if (!user) throw new Error('Sessao expirada. Faca login novamente.')
-
-    const startHHMM = timeStr.slice(0, 5)
-    const [h, m] = startHHMM.split(':').map(Number)
-    const endHHMM = `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase as any
@@ -314,66 +406,78 @@ function CheckoutContent() {
     }
 
     const normalizedInstructorId = normalizeInstructorId(String(id))
-    const normalizedSlotId = isUuid(slotId) ? slotId : null
 
     await db.from('students').upsert({ id: user.id }, { onConflict: 'id' })
 
-    const existingBooking = await db
-      .from('bookings')
-      .select('id')
-      .eq('student_id', user.id)
-      .eq('instructor_id', normalizedInstructorId)
-      .eq('scheduled_date', dateStr)
-      .eq('start_time', startHHMM)
-      .limit(1)
-      .maybeSingle()
+    const distributeAmount = (total: number, count: number, index: number) => {
+      const cents = Math.round(total * 100)
+      const base = Math.floor(cents / count)
+      const remainder = cents - base * count
+      return (base + (index === count - 1 ? remainder : 0)) / 100
+    }
 
-    if (existingBooking.data?.id) {
-      const existingBookingId = String(existingBooking.data.id)
-      await syncPaymentWithBooking(paymentIntent, String(existingBooking.data.id))
-      if (normalizedSlotId) await db.from('instructor_availability').update({ is_booked: true }).eq('id', normalizedSlotId)
-      if (activeCouponCode) {
-        await fetch('/api/coupons/redeem', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: activeCouponCode }),
-        })
+    const bookingIds: string[] = []
+
+    for (const [index, slot] of selectedSlots.entries()) {
+      const startHHMM = slot.time.slice(0, 5)
+      const [h, m] = startHHMM.split(':').map(Number)
+      const endHHMM = `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+      const normalizedSlotId = isUuid(slot.id) ? slot.id : null
+
+      const existingBooking = await db
+        .from('bookings')
+        .select('id')
+        .eq('student_id', user.id)
+        .eq('instructor_id', normalizedInstructorId)
+        .eq('scheduled_date', slot.date)
+        .eq('start_time', startHHMM)
+        .limit(1)
+        .maybeSingle()
+
+      if (existingBooking.data?.id) {
+        bookingIds.push(String(existingBooking.data.id))
+      } else {
+        const newSchemaPayload = {
+          student_id: user.id,
+          instructor_id: normalizedInstructorId,
+          availability_slot_id: normalizedSlotId,
+          scheduled_date: slot.date,
+          start_time: startHHMM,
+          end_time: endHHMM,
+          status: 'confirmed',
+          total_amount: distributeAmount(payableSplit.gross, selectedSlots.length, index),
+          platform_fee: distributeAmount(payableSplit.platformFee, selectedSlots.length, index),
+          instructor_net: distributeAmount(payableSplit.instructorNet, selectedSlots.length, index),
+          notes: selectedPackage
+            ? `Pacote ${selectedPackage.name} com ${selectedPackage.lessons_count} aulas.`
+            : selectedSlots.length > 1 ? `${selectedSlots.length} aulas avulsas selecionadas no checkout.` : null,
+        }
+
+        const created = await db.from('bookings').insert(newSchemaPayload).select('id').single()
+        if (created.error || !created.data?.id) {
+          throw new Error(created.error?.message || 'Falha ao criar agendamento.')
+        }
+        bookingIds.push(String(created.data.id))
       }
-      queueAvailabilityBackfill(existingBookingId)
-      return
-    }
 
-    const newSchemaPayload = {
-      student_id: user.id,
-      instructor_id: normalizedInstructorId,
-      availability_slot_id: normalizedSlotId,
-      scheduled_date: dateStr,
-      start_time: startHHMM,
-      end_time: endHHMM,
-      status: 'confirmed',
-      total_amount: payableSplit.gross,
-      platform_fee: payableSplit.platformFee,
-      instructor_net: payableSplit.instructorNet,
-    }
-
-    const tryInsertNew = await db.from('bookings').insert(newSchemaPayload).select('id').single()
-    if (!tryInsertNew.error && tryInsertNew.data?.id) {
-      const createdBookingId = String(tryInsertNew.data.id)
-      await syncPaymentWithBooking(paymentIntent, String(tryInsertNew.data.id))
-      if (normalizedSlotId) await db.from('instructor_availability').update({ is_booked: true }).eq('id', normalizedSlotId)
-      if (activeCouponCode) {
-        await fetch('/api/coupons/redeem', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: activeCouponCode }),
-        })
+      if (normalizedSlotId) {
+        await db.from('instructor_availability').update({ is_booked: true }).eq('id', normalizedSlotId)
       }
-      queueAvailabilityBackfill(createdBookingId)
-      return
     }
 
-    throw new Error(tryInsertNew.error?.message || 'Falha ao criar agendamento.')
-  }, [activeCouponCode, dateStr, id, payableSplit.gross, payableSplit.instructorNet, payableSplit.platformFee, queueAvailabilityBackfill, slotId, syncPaymentWithBooking, timeStr])
+    const firstBookingId = bookingIds[0]
+    if (!firstBookingId) throw new Error('Falha ao criar agendamento.')
+
+    await syncPaymentWithBooking(paymentIntent, firstBookingId)
+    if (activeCouponCode) {
+      await fetch('/api/coupons/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: activeCouponCode }),
+      })
+    }
+    queueAvailabilityBackfill(firstBookingId)
+  }, [activeCouponCode, id, payableSplit.gross, payableSplit.instructorNet, payableSplit.platformFee, queueAvailabilityBackfill, selectedPackage, selectedSlots, syncPaymentWithBooking])
 
   const handlePixConfirm = async () => {
     if (!pixIntentId) {
@@ -408,6 +512,11 @@ function CheckoutContent() {
   }
 
   const handlePixGenerate = async () => {
+    if (hasInvalidPackageSlotCount) {
+      toast.error(`Selecione exatamente ${selectedPackage?.lessons_count} horários para este pacote.`)
+      return
+    }
+
     if (isBeforeMinAdvanceWindow()) {
       toast.error(`Este instrutor aceita agendamento com no minimo ${minAdvanceHours}h de antecedencia.`)
       return
@@ -430,14 +539,20 @@ function CheckoutContent() {
         paymentMethod: 'pix',
         customerEmail,
         customerPhone,
-        description: `Aula com ${instructor?.name || 'Instrutor'} em ${dateStr} as ${timeStr}`,
+        description: selectedPackage
+          ? `${selectedPackage.name} com ${selectedPackage.lessons_count} aulas de ${instructor?.name || 'Instrutor'}`
+          : `${lessonsCount} aula${lessonsCount > 1 ? 's' : ''} com ${instructor?.name || 'Instrutor'} em ${dateStr} as ${timeStr}`,
         metadata: {
           bookingId,
           slotId,
           date: dateStr,
           time: timeStr,
+          slots: JSON.stringify(selectedSlots),
           instructorId: String(id),
+          packageId: selectedPackage?.id,
+          packageName: selectedPackage?.name,
           couponCode: activeCouponCode,
+          lessonsCount: String(lessonsCount),
         },
       })
 
@@ -482,6 +597,11 @@ function CheckoutContent() {
   }
 
   const handleAdvanceToPayment = async () => {
+    if (hasInvalidPackageSlotCount) {
+      toast.error(`Selecione exatamente ${selectedPackage?.lessons_count} horários para este pacote.`)
+      return
+    }
+
     if (!customerEmail) {
       redirectToLogin()
       return
@@ -552,14 +672,14 @@ function CheckoutContent() {
     setCouponCode('')
   }
 
-  if (loadingInstructor) {
+  if (loadingInstructor || loadingPackage) {
     return (
       <>
         <Navbar />
         <main className="min-h-screen bg-gray-50">
           <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-12 text-gray-500 sm:px-6">
             <Loader2 className="h-5 w-5 animate-spin" />
-            Carregando instrutor...
+            Carregando checkout...
           </div>
         </main>
         <Footer />
@@ -608,7 +728,9 @@ function CheckoutContent() {
 
           {step === 'review' && (
             <div className="space-y-4">
-              <h1 className="text-2xl font-extrabold text-gray-900">Confirmar agendamento</h1>
+              <h1 className="text-2xl font-extrabold text-gray-900">
+                {selectedPackage ? 'Confirmar pacote' : 'Confirmar agendamento'}
+              </h1>
 
               <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
                 <div className="flex items-center gap-4">
@@ -644,34 +766,85 @@ function CheckoutContent() {
                     <span>{timeStr ? `${timeStr.slice(0, 5)} - 60 min` : '-'}</span>
                   </div>
                 </div>
+                {selectedPackage && (
+                  <div className="mt-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-900">
+                    <p className="font-semibold">{selectedPackage.name}</p>
+                    {/* <p className="mt-1">
+                      Pacote com {selectedPackage.lessons_count} aulas por {formatCurrency(selectedPackage.price)} antes das taxas do checkout.
+                    </p> */}
+                  </div>
+                )}
+                {selectedSlots.length > 1 && (
+                  <div className="mt-4 rounded-xl bg-gray-50 p-3 text-sm text-gray-600">
+                    <p className="mb-2 font-semibold text-gray-900">Aulas selecionadas</p>
+                    <div className="space-y-1">
+                      {selectedSlots.map((slot) => (
+                        <p key={`${slot.id}-${slot.date}-${slot.time}`}>
+                          {format(new Date(`${slot.date}T00:00:00`), 'dd/MM/yyyy', { locale: ptBR })} às {slot.time}
+                        </p>
+                      ))}
+                    </div>
+                    {selectedPackage && (
+                      <p className="mt-2 text-xs text-gray-500">
+                        {selectedSlots.length === selectedPackage.lessons_count
+                          ? 'Quantidade de horários do pacote preenchida.'
+                          : `Ainda faltam ${selectedPackage.lessons_count - selectedSlots.length} horário(s).`}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
-              <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                <h2 className="mb-3 font-bold text-gray-900">Resumo do pagamento</h2>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between text-gray-600">
-                    <span>Instrutor recebe</span>
-                    <span>{formatCurrency(split.instructorNet)}</span>
-                  </div>
-                  {appliedCoupon && (
-                    <div className="flex justify-between text-emerald-700">
-                      <span>Desconto ({appliedCoupon.code})</span>
-                      <span>- {formatCurrency(appliedCoupon.discount_amount)}</span>
+              <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+                <div className="px-5 pt-5 pb-4">
+                  <h2 className="mb-4 font-bold text-gray-900">Resumo do pagamento</h2>
+
+                  {/* PIX savings banner — only when card is selected and there's a real saving */}
+                  {payMethod === 'card' && pixSavings > 0 && (
+                    <div className="mb-4 flex items-center gap-3 rounded-xl bg-emerald-50 px-4 py-3">
+                      <span className="text-xl">⚡</span>
+                      <div>
+                        <p className="text-sm font-bold text-emerald-800">
+                          Economize {formatCurrency(pixSavings)} pagando com Pix
+                        </p>
+                        <p className="text-xs text-emerald-700">
+                          Sem taxa de processamento no Pix
+                        </p>
+                      </div>
                     </div>
                   )}
-                  <div className="flex justify-between text-xs text-gray-400">
-                    <span>Taxa da plataforma ({split.platformFeeRate}%)</span>
-                    <span>{formatCurrency(payableSplit.platformFee)}</span>
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-400">
-                    <span>Taxa do {payMethod === 'pix' ? 'Pix' : 'cartao'} ({split.paymentMethodRate}%)</span>
-                    <span>{formatCurrency(payableSplit.paymentMethodFee)}</span>
-                  </div>
-                  <div className="mt-2 flex justify-between border-t border-gray-100 pt-2 text-base font-extrabold text-gray-900">
-                    <span>Total a pagar</span>
-                    <span className="text-blue-700">{formatCurrency(payableAmount)}</span>
+
+                  <div className="space-y-2">
+                    {/* Card total with PIX crossed-out comparison */}
+                    {payMethod === 'card' && pixSavings > 0 ? (
+                      <div className="flex items-end justify-between border-t border-gray-100 pt-3">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Total no cartão</p>
+                          <p className="mt-0.5 text-xl font-extrabold text-gray-900">{formatCurrency(payableAmount)}</p>
+                          <p className="mt-0.5 text-xs text-gray-400">
+                            ou <span className="font-semibold text-emerald-700">{formatCurrency(pixAmount)} no Pix</span>{' '}
+                            <span className="line-through text-gray-400">{formatCurrency(payableAmount)}</span>
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                          Pix -{formatCurrency(pixSavings)}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between border-t border-gray-100 pt-3">
+                        <span className="text-base font-extrabold text-gray-900">Total a pagar</span>
+                        <span className="text-xl font-extrabold text-emerald-700">{formatCurrency(payableAmount)}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                {/* Pix upsell footer */}
+                {payMethod === 'card' && pixSavings > 0 && (
+                  <div className="border-t border-gray-100 bg-gray-50 px-5 py-3 text-xs text-gray-500">
+                    Selecione <span className="font-semibold text-gray-700">Pix</span> acima para pagar {formatCurrency(pixAmount)} e economizar {formatCurrency(pixSavings)}.
+                  </div>
+                )}
               </div>
 
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
@@ -727,9 +900,9 @@ function CheckoutContent() {
                     <span className={`text-sm font-bold ${payMethod === 'pix' ? 'text-emerald-700' : 'text-gray-600'}`}>
                       Pix
                     </span>
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-600">
+                    {/* <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-600">
                       + {platformSettings.platform_fee_percent + platformSettings.pix_fee_percent}% no checkout
-                    </span>
+                    </span> */}
                   </button>
 
                   <button
@@ -742,7 +915,7 @@ function CheckoutContent() {
                     <span className={`text-sm font-bold ${payMethod === 'card' ? 'text-blue-700' : 'text-gray-600'}`}>
                       Cartao de credito
                     </span>
-                    <span className="text-xs font-medium text-gray-400">Mercado Pago Bricks - + {platformSettings.platform_fee_percent + platformSettings.card_fee_percent}% no checkout</span>
+                    <span className="text-xs font-medium text-gray-400">*sujeito a taxas</span>
                   </button>
                 </div>
               </div>
@@ -786,21 +959,35 @@ function CheckoutContent() {
                   amount={payableAmount}
                   customerEmail={customerEmail}
                   customerPhone={customerPhone}
-                  description={`Aula com ${instructor.name} em ${dateStr} as ${timeStr}`}
+                  description={
+                    selectedPackage
+                      ? `${selectedPackage.name} com ${selectedPackage.lessons_count} aulas de ${instructor.name}`
+                      : `${lessonsCount} aula${lessonsCount > 1 ? 's' : ''} com ${instructor.name} a partir de ${dateStr} ${timeStr}`
+                  }
                   metadata={{
                     bookingId,
                     slotId,
                     date: dateStr,
                     time: timeStr,
+                    slots: JSON.stringify(selectedSlots),
                     instructorId: String(id),
+                    packageId: selectedPackage?.id,
+                    packageName: selectedPackage?.name,
                     couponCode: activeCouponCode,
+                    lessonsCount: String(lessonsCount),
                   }}
                   onPaymentCreated={handleCardPaymentCreated}
                 />
               </div>
 
               <div className="flex items-center justify-between rounded-xl bg-blue-50 px-4 py-3 text-sm">
-                <span className="text-gray-600">Aula com {instructor.name} · {timeStr.slice(0, 5)}</span>
+                <span className="text-gray-600">
+                  {selectedPackage
+                    ? `${selectedPackage.name} com ${selectedPackage.lessons_count} aulas`
+                    : selectedSlots.length > 1
+                    ? `${selectedSlots.length} horários com ${instructor.name}`
+                    : `Aula com ${instructor.name} · ${timeStr.slice(0, 5)}`}
+                </span>
                 <span className="font-bold text-blue-700">{formatCurrency(payableAmount)}</span>
               </div>
 

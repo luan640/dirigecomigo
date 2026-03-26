@@ -3,6 +3,8 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 
 export type UserRole = 'student' | 'instructor' | 'admin'
 export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled'
+export type ManualLessonStatus = 'completed' | 'cancelled'
+export type PayoutRequestStatus = 'pending' | 'processing' | 'paid' | 'rejected' | 'cancelled'
 export type PaymentStatus = 'pending' | 'processing' | 'paid' | 'failed' | 'refunded'
 export type SubscriptionStatus = 'active' | 'pending' | 'expired' | 'cancelled'
 export type VehicleCategory = 'A' | 'B' | 'AB' | 'C' | 'D' | 'E'
@@ -106,23 +108,79 @@ export interface Database {
         Insert: Omit<Database['public']['Tables']['bookings']['Row'], 'created_at' | 'updated_at'>
         Update: Partial<Database['public']['Tables']['bookings']['Insert']>
       }
+      manual_lessons: {
+        Row: {
+          id: string
+          instructor_id: string
+          student_name: string
+          student_phone: string | null
+          category: VehicleCategory
+          lesson_date: string
+          start_time: string
+          end_time: string
+          amount: number
+          status: ManualLessonStatus
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['manual_lessons']['Row'], 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Database['public']['Tables']['manual_lessons']['Insert']>
+      }
+      payout_requests: {
+        Row: {
+          id: string
+          instructor_id: string
+          amount: number
+          status: PayoutRequestStatus
+          notes: string | null
+          admin_notes: string | null
+          requested_at: string
+          processed_at: string | null
+          processed_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['payout_requests']['Row'], 'id' | 'requested_at' | 'created_at' | 'updated_at' | 'processed_at' | 'processed_by' | 'admin_notes'>
+        Update: Partial<Database['public']['Tables']['payout_requests']['Insert']> & {
+          processed_at?: string | null
+          processed_by?: string | null
+          admin_notes?: string | null
+        }
+      }
       payments: {
         Row: {
           id: string
           created_at: string
-          updated_at: string
           booking_id: string
-          student_id: string
           amount: number
-          platform_fee: number
-          instructor_net: number
           status: PaymentStatus
           provider: string
-          provider_reference: string | null
-          provider_metadata: Json | null
+          provider_payment_id: string | null
+          currency: string
+          paid_at: string | null
+          refunded_at: string | null
+          metadata: Json | null
         }
-        Insert: Omit<Database['public']['Tables']['payments']['Row'], 'created_at' | 'updated_at'>
+        Insert: Omit<Database['public']['Tables']['payments']['Row'], 'created_at'>
         Update: Partial<Database['public']['Tables']['payments']['Insert']>
+      }
+      payment_refunds: {
+        Row: {
+          id: string
+          payment_id: string
+          booking_id: string | null
+          provider: string
+          provider_refund_id: string | null
+          amount: number
+          reason: string | null
+          status: string
+          refunded_by: string | null
+          metadata: Json | null
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['payment_refunds']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['payment_refunds']['Insert']>
       }
       subscriptions: {
         Row: {
@@ -197,6 +255,8 @@ export interface Database {
     Enums: {
       user_role: UserRole
       booking_status: BookingStatus
+      manual_lesson_status: ManualLessonStatus
+      payout_request_status: PayoutRequestStatus
       payment_status: PaymentStatus
       subscription_status: SubscriptionStatus
       vehicle_category: VehicleCategory

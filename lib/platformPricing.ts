@@ -70,9 +70,18 @@ export function calculatePlatformPaymentSplit(
   const platformFeeRate = normalized.platform_fee_percent
   const paymentMethodRate = getPaymentMethodFeeRate(paymentMethod, normalized)
   const totalExtraRate = platformFeeRate + paymentMethodRate
+
+  // Platform fee is a markup on the instructor net
   const platformFee = roundCurrency(instructorNet * (platformFeeRate / 100))
-  const paymentMethodFee = roundCurrency(instructorNet * (paymentMethodRate / 100))
-  const gross = roundCurrency(instructorNet + platformFee + paymentMethodFee)
+  // Base amount the platform needs to receive (PIX-equivalent price)
+  const baseAmount = roundCurrency(instructorNet + platformFee)
+
+  // Payment method fee is applied on the gross by the provider (e.g. MP charges 4.98% on total)
+  // So: gross = baseAmount / (1 - paymentMethodRate/100)
+  const gross = paymentMethodRate > 0
+    ? roundCurrency(baseAmount / (1 - paymentMethodRate / 100))
+    : baseAmount
+  const paymentMethodFee = roundCurrency(gross - baseAmount)
 
   return {
     gross,

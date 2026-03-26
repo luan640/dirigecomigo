@@ -58,7 +58,7 @@ export default function CompleteLessonButton({
               <div>
                 <h2 className="text-xl font-extrabold text-gray-900">Concluir aula</h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  Confirme que a aula foi realizada. Esta acao nao podera ser desfeita.
+                  Confirme que a aula foi realizada. Esta ação não poderá ser desfeita.
                 </p>
               </div>
               <button

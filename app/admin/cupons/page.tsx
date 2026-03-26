@@ -96,7 +96,7 @@ export default function AdminCouponsPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="w-full max-w-none space-y-6">
       <div>
         <h1 className="text-3xl font-extrabold text-gray-900">Cupons de Desconto</h1>
         <p className="text-sm text-gray-500 mt-1">Crie cupons para alunos usarem no checkout de agendamento.</p>
