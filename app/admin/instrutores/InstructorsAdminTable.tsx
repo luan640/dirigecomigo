@@ -2,11 +2,14 @@
 
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { Loader2, X, ExternalLink } from 'lucide-react'
+import { Loader2, X, ExternalLink, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import type { InstructorAdminRow } from './page'
 
 function StorageImageCard({ url, label }: { url: string; label: string }) {
+  const normalizedUrl = url.toLowerCase()
+  const isPdf = normalizedUrl.includes('.pdf') || normalizedUrl.includes('application/pdf')
+
   return (
     <div className="rounded-xl border border-gray-200 overflow-hidden">
       <div className="bg-gray-50 px-3 py-2 flex items-center justify-between border-b border-gray-200">
@@ -21,8 +24,18 @@ function StorageImageCard({ url, label }: { url: string; label: string }) {
           Abrir
         </a>
       </div>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt={label} className="w-full max-h-56 object-contain bg-white p-2" />
+      {isPdf ? (
+        <div className="flex min-h-56 flex-col items-center justify-center gap-2 bg-white p-6 text-center">
+          <div className="rounded-full bg-red-50 p-3">
+            <FileText className="h-6 w-6 text-red-600" />
+          </div>
+          <p className="text-sm font-semibold text-gray-900">Documento em PDF</p>
+          <p className="text-xs text-gray-500">Abra o arquivo para visualizar o credenciamento enviado.</p>
+        </div>
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt={label} className="w-full max-h-56 object-contain bg-white p-2" />
+      )}
     </div>
   )
 }
@@ -104,6 +117,8 @@ export default function InstructorsAdminTable({ initialRows }: Props) {
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [loadingAction, setLoadingAction] = useState<'approve' | 'reject' | null>(null)
   const [modalRow, setModalRow] = useState<InstructorAdminRow | null>(null)
+  const [rejectTarget, setRejectTarget] = useState<{ id: string; name: string } | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
 
   const pendingRows = rows.filter(r => getTab(r) === 'pending')
   const activeRows = rows.filter(r => getTab(r) === 'active')
@@ -114,14 +129,14 @@ export default function InstructorsAdminTable({ initialRows }: Props) {
     : activeTab === 'active' ? activeRows
     : rejectedRows
 
-  const handleAction = async (id: string, action: 'approve' | 'reject') => {
+  const handleAction = async (id: string, action: 'approve' | 'reject', reason?: string) => {
     setLoadingId(id)
     setLoadingAction(action)
     try {
       const res = await fetch('/api/admin/instrutores', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action }),
+        body: JSON.stringify({ id, action, reason: reason ?? '' }),
       })
       const payload = await res.json()
       if (!res.ok) throw new Error(payload?.error || 'Falha ao processar acao.')
@@ -153,13 +168,33 @@ export default function InstructorsAdminTable({ initialRows }: Props) {
         )
       }
 
-      toast.success(action === 'approve' ? 'Instrutor aprovado com sucesso.' : 'Instrutor recusado.')
+      if (action === 'reject') {
+        if (payload?.emailSent) {
+          toast.success('Instrutor recusado. E-mail enviado com o motivo da recusa.')
+        } else {
+          toast.warning(`Instrutor recusado, mas o e-mail nao foi enviado${payload?.emailError ? `: ${payload.emailError}` : '.'}`)
+        }
+      } else {
+        toast.success('Instrutor aprovado com sucesso.')
+      }
     } catch (err) {
       toast.error((err as Error).message || 'Erro ao processar acao.')
     } finally {
       setLoadingId(null)
       setLoadingAction(null)
     }
+  }
+
+  const openRejectModal = (id: string, name: string) => {
+    setRejectReason('')
+    setRejectTarget({ id, name })
+  }
+
+  const confirmReject = async () => {
+    if (!rejectTarget) return
+    if (!rejectReason.trim()) { toast.error('Informe o motivo da recusa.'); return }
+    setRejectTarget(null)
+    await handleAction(rejectTarget.id, 'reject', rejectReason.trim())
   }
 
   const tabs: { key: TabKey; label: string; count: number }[] = [
@@ -282,7 +317,7 @@ export default function InstructorsAdminTable({ initialRows }: Props) {
                           {getTab(row) !== 'rejected' && (
                             <button
                               type="button"
-                              onClick={() => handleAction(row.id, 'reject')}
+                              onClick={() => openRejectModal(row.id, row.full_name || 'Instrutor')}
                               disabled={isLoading}
                               className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60 transition-colors"
                             >
@@ -308,9 +343,20 @@ export default function InstructorsAdminTable({ initialRows }: Props) {
           row={modalRow}
           onClose={() => setModalRow(null)}
           onApprove={() => handleAction(modalRow.id, 'approve')}
-          onReject={() => handleAction(modalRow.id, 'reject')}
+          onReject={() => openRejectModal(modalRow.id, modalRow.full_name || 'Instrutor')}
           loadingId={loadingId}
           loadingAction={loadingAction}
+        />
+      )}
+
+      {rejectTarget && (
+        <RejectReasonModal
+          name={rejectTarget.name}
+          reason={rejectReason}
+          onReasonChange={setRejectReason}
+          onConfirm={confirmReject}
+          onCancel={() => setRejectTarget(null)}
+          loading={loadingId === rejectTarget.id && loadingAction === 'reject'}
         />
       )}
     </>
@@ -414,12 +460,13 @@ function InstructorModal({
             </div>
           </div>
 
-          {(row.avatar_url || row.cnh_photo_url) && (
+          {(row.avatar_url || row.cnh_photo_url || row.credenciamento_doc_url) && (
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Imagens enviadas</h4>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {row.avatar_url && <StorageImageCard url={row.avatar_url} label="Foto de perfil" />}
                 {row.cnh_photo_url && <StorageImageCard url={row.cnh_photo_url} label="Foto da CNH" />}
+                {row.credenciamento_doc_url && <StorageImageCard url={row.credenciamento_doc_url} label="Credenciamento DETRAN" />}
               </div>
             </div>
           )}
@@ -463,6 +510,78 @@ function InstructorModal({
               Aprovar
             </button>
           )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RejectReasonModal({
+  name,
+  reason,
+  onReasonChange,
+  onConfirm,
+  onCancel,
+  loading,
+}: {
+  name: string
+  reason: string
+  onReasonChange: (v: string) => void
+  onConfirm: () => void
+  onCancel: () => void
+  loading: boolean
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onCancel() }}
+    >
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div>
+            <h3 className="text-base font-bold text-gray-900">Recusar cadastro</h3>
+            <p className="text-sm text-gray-500 mt-0.5">{name}</p>
+          </div>
+          <button type="button" onClick={onCancel} className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          <p className="text-sm text-gray-600">
+            Informe o motivo da recusa. Ele será enviado por e-mail ao instrutor para que possa corrigir as pendências.
+          </p>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              Motivo da recusa <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              rows={4}
+              value={reason}
+              onChange={e => onReasonChange(e.target.value)}
+              placeholder="Ex: O documento de credenciamento DETRAN está ilegível. Por favor, envie uma foto mais nítida."
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-all resize-none"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading || !reason.trim()}
+            className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60 transition-colors"
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Recusar e enviar e-mail
+          </button>
         </div>
       </div>
     </div>

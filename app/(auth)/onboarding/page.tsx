@@ -16,7 +16,7 @@ import { BRAZIL_STATES } from '@/constants/locations'
 import { searchLocationSuggestionsAction, lookupCepAction, type AddressSuggestion } from '@/lib/location'
 import { createClient } from '@/lib/supabase/client'
 import {
-  deleteAvatarAction, uploadAvatarAction, uploadCnhAction,
+  deleteAvatarAction, uploadAvatarAction, uploadCnhAction, uploadCredenciamentoAction,
 } from '@/app/(painel)/painel/perfil/actions'
 import BrandLogo from '@/components/layout/BrandLogo'
 import AuthLeftPanel from '@/components/auth/AuthLeftPanel'
@@ -67,6 +67,7 @@ type OnboardingInstructorRow = {
   state?: string | null
   latitude?: number | null
   longitude?: number | null
+  owned_vehicle_categories?: unknown[] | null
 }
 
 const CNH_CATEGORIES = [
@@ -148,7 +149,7 @@ function InstructorDoneScreen() {
         style={{ background: 'rgba(33,166,55,0.07)', border: '1px solid rgba(33,166,55,0.15)' }}>
         <p className="text-xs font-bold text-[#21a637] uppercase tracking-widest">O que acontece agora?</p>
         {[
-          { icon: ShieldCheck, text: 'Verificamos sua CNH e dados cadastrais' },
+          { icon: ShieldCheck, text: 'Verificamos sua CNH e credenciamento DETRAN' },
           { icon: Clock,       text: 'Prazo de análise: até 2 dias úteis' },
           { icon: CheckCircle2, text: 'Você receberá um WhatsApp quando aprovado' },
         ].map(({ icon: Icon, text }, i) => (
@@ -217,9 +218,16 @@ function OnboardingContent() {
   const [cnhUploading, setCnhUploading] = useState(false)
   const cnhInputRef = useRef<HTMLInputElement | null>(null)
 
+  // Credenciamento DETRAN
+  const [credenciamentoUrl, setCredenciamentoUrl] = useState<string | null>(null)
+  const [credenciamentoFileName, setCredenciamentoFileName] = useState<string | null>(null)
+  const [credenciamentoUploading, setCredenciamentoUploading] = useState(false)
+  const credenciamentoInputRef = useRef<HTMLInputElement | null>(null)
+
   // Categories & prices
   const [selectedCategories, setSelectedCategories] = useState<string[]>(['B'])
   const [categoryPrices, setCategoryPrices] = useState<Record<string, string>>({ B: '80' })
+  const [categoryHasVehicle, setCategoryHasVehicle] = useState<Record<string, boolean>>({ B: true })
   const [categoriesError, setCategoriesError] = useState<string | null>(null)
 
   // Lesson options
@@ -292,9 +300,9 @@ function OnboardingContent() {
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: instructor } = await (supabase.from('instructors') as any)
-          .select('category,categories,price_per_lesson_a,price_per_lesson_b,neighborhood,city,state,latitude,longitude,cnh_photo_url')
+          .select('category,categories,price_per_lesson_a,price_per_lesson_b,neighborhood,city,state,latitude,longitude,cnh_photo_url,credenciamento_doc_url,owned_vehicle_categories')
           .eq('id', user.id)
-          .maybeSingle() as { data: OnboardingInstructorRow & { cnh_photo_url?: string | null } | null; error: Error | null }
+          .maybeSingle() as { data: OnboardingInstructorRow & { cnh_photo_url?: string | null; credenciamento_doc_url?: string | null } | null; error: Error | null }
 
         const fullName = String(profile?.full_name || user.user_metadata?.full_name || '').trim()
         const email = String(profile?.email || user.email || '').trim()
@@ -327,9 +335,21 @@ function OnboardingContent() {
         setOriginalAvatarUrl(nextAvatarUrl)
         setAvatarFallbackLetter(getFallbackLetter(fullName))
 
+        if (instructor?.owned_vehicle_categories) {
+          const owned = Array.isArray(instructor.owned_vehicle_categories)
+            ? instructor.owned_vehicle_categories.map(String)
+            : []
+          setCategoryHasVehicle(Object.fromEntries(owned.map(c => [c, true])))
+        }
+
         if (instructor?.cnh_photo_url) {
           setCnhPhotoUrl(String(instructor.cnh_photo_url))
           setCnhFileName('CNH já enviada')
+        }
+
+        if (instructor?.credenciamento_doc_url) {
+          setCredenciamentoUrl(String(instructor.credenciamento_doc_url))
+          setCredenciamentoFileName('Credenciamento já enviado')
         }
       } catch (err) {
         toast.error((err as Error).message || 'Erro ao carregar seus dados.')
@@ -418,6 +438,8 @@ function OnboardingContent() {
         is_active: false,
         status: 'pending',
         cnh_photo_url: cnhPhotoUrl || null,
+        credenciamento_doc_url: credenciamentoUrl || null,
+        owned_vehicle_categories: categories.filter(cat => categoryHasVehicle[cat]),
       }
 
       const upsertInstructor = async (payload: Record<string, unknown>) =>
@@ -553,6 +575,29 @@ function OnboardingContent() {
       toast.error((err as Error).message || 'Erro ao enviar CNH.')
     } finally {
       setCnhUploading(false)
+      event.target.value = ''
+    }
+  }
+
+  /* Credenciamento upload */
+  async function handleCredenciamentoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+    if (!allowedTypes.includes(file.type)) { toast.error('Envie uma imagem (JPG, PNG, WEBP) ou PDF do credenciamento.'); return }
+    if (file.size > 10 * 1024 * 1024) { toast.error('O arquivo deve ter no máximo 10 MB.'); return }
+    setCredenciamentoUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const uploaded = await uploadCredenciamentoAction(formData)
+      setCredenciamentoUrl(uploaded.url)
+      setCredenciamentoFileName(file.name)
+      toast.success('Documento de credenciamento enviado!')
+    } catch (err) {
+      toast.error((err as Error).message || 'Erro ao enviar documento.')
+    } finally {
+      setCredenciamentoUploading(false)
       event.target.value = ''
     }
   }
@@ -770,7 +815,7 @@ function OnboardingContent() {
                     {/* Categories */}
                     <div>
                       <label className="block text-[10px] font-semibold text-[#9ca3af] uppercase tracking-widest mb-2">
-                        Serviços oferecidos
+                        Serviços oferecidos (escolha mais de um)
                       </label>
                       <div className="grid gap-2 grid-cols-2 sm:grid-cols-3">
                         {CNH_CATEGORIES.map(({ value, label, desc, icon: Icon }) => {
@@ -781,9 +826,13 @@ function OnboardingContent() {
                               type="button"
                               onClick={() => {
                                 setCategoriesError(null)
-                                setSelectedCategories(prev =>
-                                  prev.includes(value) ? prev.filter(c => c !== value) : [...prev, value]
-                                )
+                                setSelectedCategories(prev => {
+                                  if (prev.includes(value)) {
+                                    setCategoryHasVehicle(h => { const n = { ...h }; delete n[value]; return n })
+                                    return prev.filter(c => c !== value)
+                                  }
+                                  return [...prev, value]
+                                })
                               }}
                               className="rounded-xl p-3 text-left transition-all"
                               style={active
@@ -806,25 +855,55 @@ function OnboardingContent() {
                         <p className="text-[10px] font-semibold text-[#9ca3af] uppercase tracking-widest">
                           Valor por aula (R$)
                         </p>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-4">
                           {selectedCategories.sort().map(cat => {
                             const catInfo = CNH_CATEGORIES.find(c => c.value === cat)
+                            const hasVehicle = !!categoryHasVehicle[cat]
                             return (
-                              <div key={cat}>
-                                <label className="block text-xs text-[#9ca3af] mb-1">
+                              <div key={cat} className="rounded-xl p-4 space-y-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                <p className="text-xs font-bold text-white">
                                   {catInfo?.label} — {catInfo?.desc}
-                                </label>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  placeholder="Ex: 80"
-                                  value={categoryPrices[cat] ?? ''}
-                                  onChange={e => {
-                                    setCategoriesError(null)
-                                    setCategoryPrices(prev => ({ ...prev, [cat]: e.target.value }))
-                                  }}
-                                  className={inputClass}
-                                />
+                                </p>
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="block text-[10px] text-[#9ca3af] mb-1 uppercase tracking-wider">Valor por aula (R$)</label>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      placeholder="Ex: 80"
+                                      value={categoryPrices[cat] ?? ''}
+                                      onChange={e => {
+                                        setCategoriesError(null)
+                                        setCategoryPrices(prev => ({ ...prev, [cat]: e.target.value }))
+                                      }}
+                                      className={inputClass}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] text-[#9ca3af] mb-1 uppercase tracking-wider">Possui veículo?</label>
+                                    <button
+                                      type="button"
+                                      onClick={() => setCategoryHasVehicle(prev => ({ ...prev, [cat]: !prev[cat] }))}
+                                      className="w-full flex items-center justify-between rounded-xl px-4 py-3 transition-all"
+                                      style={hasVehicle
+                                        ? { border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.08)' }
+                                        : { border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)' }}
+                                    >
+                                      <span className={`text-sm font-semibold ${hasVehicle ? 'text-white' : 'text-[#6b7280]'}`}>
+                                        {hasVehicle ? 'Sim, tenho veículo' : 'Não tenho veículo'}
+                                      </span>
+                                      <div
+                                        className="w-9 h-5 rounded-full flex-shrink-0 relative transition-all"
+                                        style={{ background: hasVehicle ? '#16a34a' : 'rgba(255,255,255,0.1)' }}
+                                      >
+                                        <div
+                                          className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all"
+                                          style={{ left: hasVehicle ? '18px' : '2px' }}
+                                        />
+                                      </div>
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
                             )
                           })}
@@ -956,6 +1035,64 @@ function OnboardingContent() {
                       </div>
                       <p className="mt-1.5 text-xs text-[#6b7280]">
                         Envie uma foto legível da frente da CNH. Usamos para verificar sua habilitação.
+                      </p>
+                    </div>
+
+                    {/* Credenciamento DETRAN upload */}
+                    <div>
+                      <label className="block text-[10px] font-semibold text-[#9ca3af] uppercase tracking-widest mb-1.5">
+                        Credenciamento DETRAN <span className="text-white/60">*</span>
+                      </label>
+                      <div
+                        className="relative rounded-2xl p-5 transition-all"
+                        style={{ background: 'rgba(255,255,255,0.03)', border: credenciamentoUrl ? '1px solid rgba(249,168,0,0.4)' : '1px dashed rgba(255,255,255,0.15)' }}
+                      >
+                        {credenciamentoUploading ? (
+                          <div className="flex flex-col items-center gap-2 py-4">
+                            <Loader2 className="w-6 h-6 animate-spin text-white/60" />
+                            <p className="text-xs text-[#9ca3af]">Enviando...</p>
+                          </div>
+                        ) : credenciamentoUrl ? (
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                              style={{ background: 'rgba(249,168,0,0.15)' }}>
+                              <CheckCircle2 className="w-5 h-5 text-[#f6c400]" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-white">Credenciamento enviado</p>
+                              <p className="text-xs text-[#9ca3af] truncate">{credenciamentoFileName}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => { setCredenciamentoUrl(null); setCredenciamentoFileName(null) }}
+                              className="text-[#6b7280] hover:text-red-400 transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => credenciamentoInputRef.current?.click()}
+                            className="w-full flex flex-col items-center gap-2 py-4"
+                          >
+                            <FileImage className="w-8 h-8 text-white/40" />
+                            <div className="text-center">
+                              <p className="text-sm font-semibold text-white">Clique para enviar o credenciamento</p>
+                              <p className="text-xs text-[#9ca3af] mt-0.5">JPG, PNG, WEBP ou PDF — máx. 10 MB</p>
+                            </div>
+                          </button>
+                        )}
+                        <input
+                          ref={credenciamentoInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,application/pdf"
+                          onChange={handleCredenciamentoChange}
+                          className="hidden"
+                        />
+                      </div>
+                      <p className="mt-1.5 text-xs text-[#6b7280]">
+                        Documento emitido pelo DETRAN-CE após credenciamento como instrutor autônomo. Válido por 12 meses.
                       </p>
                     </div>
 

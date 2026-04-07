@@ -113,6 +113,34 @@ export async function uploadCnhAction(formData: FormData) {
   return { url: getPublicUrl(key) }
 }
 
+export async function uploadCredenciamentoAction(formData: FormData) {
+  const { createClient } = await import('@/lib/supabase/server')
+  const supabase = await createClient()
+  const { data: authData } = await supabase.auth.getUser()
+  const user = authData.user
+  if (!user) throw new Error('Nao autenticado.')
+
+  const file = formData.get('file')
+  if (!(file instanceof File)) throw new Error('Arquivo obrigatorio.')
+
+  const s3 = createS3Client()
+  const bucket = process.env.NAME_BUCKET_S3
+  if (!bucket) throw new Error('Bucket S3 nao configurado.')
+
+  const bytes = Buffer.from(await file.arrayBuffer())
+  const extension = file.name.includes('.') ? file.name.split('.').pop()?.toLowerCase() || 'pdf' : 'pdf'
+  const key = `credenciamento/${user.id}/${randomUUID()}.${extension}`
+
+  await s3.send(new PutObjectCommand({
+    Bucket: bucket,
+    Key: key,
+    Body: bytes,
+    ContentType: file.type || 'application/octet-stream',
+  }))
+
+  return { url: getPublicUrl(key) }
+}
+
 export async function deleteAvatarAction(url: string) {
   const normalizedUrl = String(url || '').trim()
   if (!normalizedUrl) return

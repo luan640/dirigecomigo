@@ -18,6 +18,7 @@ export type InstructorAdminRow = {
   price_per_lesson?: number
   categories?: string[] | string
   cnh_photo_url?: string
+  credenciamento_doc_url?: string
   birth_date?: string
   cpf?: string
   accepts_student_car?: boolean
@@ -78,7 +79,7 @@ export default async function InstrutoresAdminPage() {
 
   const [{ data: instructors }, { data: profiles }] = await Promise.all([
     db.from('instructors').select(
-      'id,status,is_active,is_verified,created_at,neighborhood,city,state,price_per_lesson,price_per_lesson_a,price_per_lesson_b,price_per_lesson_c,price_per_lesson_d,price_per_lesson_e,categories,cnh_photo_url,birth_date,cpf,accepts_student_car,lesson_types'
+      'id,status,is_active,is_verified,created_at,neighborhood,city,state,price_per_lesson,price_per_lesson_a,price_per_lesson_b,price_per_lesson_c,price_per_lesson_d,price_per_lesson_e,categories,cnh_photo_url,credenciamento_doc_url,birth_date,cpf,accepts_student_car,lesson_types'
     ).order('created_at', { ascending: false }),
     db.from('profiles').select('id,full_name,email,phone,avatar_url'),
   ])
@@ -102,6 +103,7 @@ export default async function InstrutoresAdminPage() {
       price_per_lesson: inst.price_per_lesson != null ? Number(inst.price_per_lesson) : undefined,
       categories: inst.categories as string[] | string | undefined,
       cnh_photo_url: inst.cnh_photo_url ? String(inst.cnh_photo_url) : undefined,
+      credenciamento_doc_url: inst.credenciamento_doc_url ? String(inst.credenciamento_doc_url) : undefined,
       birth_date: inst.birth_date ? String(inst.birth_date) : undefined,
       cpf: inst.cpf ? String(inst.cpf) : undefined,
       accepts_student_car: typeof inst.accepts_student_car === 'boolean' ? inst.accepts_student_car : undefined,

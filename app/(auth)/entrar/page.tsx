@@ -1,12 +1,12 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Loader2, X, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
 import BrandLogo from '@/components/layout/BrandLogo'
 import AuthLeftPanel from '@/components/auth/AuthLeftPanel'
@@ -18,12 +18,118 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
+function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
+  const [email, setEmail] = useState('')
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!email.trim()) return
+    setSending(true)
+    try {
+      const res = await fetch('/api/auth/recuperar-senha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      })
+      const payload = await res.json()
+      if (!res.ok) throw new Error(payload?.error || 'Erro ao enviar.')
+      setSent(true)
+    } catch (err) {
+      toast.error((err as Error).message || 'Erro ao enviar o e-mail.')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="w-full max-w-sm rounded-2xl overflow-hidden" style={{ background: '#111827' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+          <p className="font-semibold text-white text-sm">Recuperar senha</p>
+          <button type="button" onClick={onClose} className="text-white/40 hover:text-white transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5">
+          {sent ? (
+            <div className="text-center py-2">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-500/15">
+                <CheckCircle2 className="h-6 w-6 text-green-400" />
+              </div>
+              <p className="font-semibold text-white mb-1">E-mail enviado!</p>
+              <p className="text-sm text-white/50 mb-4">Verifique sua caixa de entrada e clique no link para criar uma nova senha.</p>
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full py-2.5 rounded-xl text-sm font-semibold text-white/70 border border-white/10 hover:border-white/20 transition-colors"
+              >
+                Fechar
+              </button>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-white/50 mb-4">
+                Informe seu e-mail e enviaremos um link para criar uma nova senha.
+              </p>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                    E-mail
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="seu@email.com"
+                    autoFocus
+                    required
+                    className="w-full px-4 py-3 bg-white/[0.06] border border-white/[0.18] rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#21a637] focus:ring-2 focus:ring-[#21a637]/20 transition-all"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={sending || !email.trim()}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-black disabled:opacity-50 transition-all"
+                  style={{ background: 'linear-gradient(135deg, #21a637 0%, #178a2e 100%)' }}
+                >
+                  {sending && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {sending ? 'Enviando...' : 'Enviar link de recuperação'}
+                </button>
+              </form>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function EntrarContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const redirectTo = searchParams.get('redirectTo') || ''
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const redirectTo = searchParams.get('redirectTo') || searchParams.get('redirect') || ''
+
+  useEffect(() => {
+    const hash = window.location.hash.slice(1)
+    if (!hash) return
+    const params = new URLSearchParams(hash)
+    const errorCode = params.get('error_code')
+    if (errorCode === 'otp_expired' || params.get('error') === 'access_denied') {
+      const nextUrl = new URL('/recuperar-senha', window.location.origin)
+      nextUrl.searchParams.set('status', 'codigo-expirado')
+      window.location.replace(nextUrl.toString())
+    }
+  }, [])
 
   const {
     register,
@@ -251,12 +357,6 @@ function EntrarContent() {
                 <label className="block text-xs font-semibold text-[#8cb89a] uppercase tracking-widest">
                   Senha
                 </label>
-                <Link
-                  href="/recuperar-senha"
-                  className="text-xs text-[#6b9675] hover:text-[#21a637] transition-colors"
-                >
-                  Esqueceu a senha?
-                </Link>
               </div>
               <div className="relative">
                 <input
@@ -290,6 +390,20 @@ function EntrarContent() {
               {loading ? 'Entrando...' : 'Entrar'}
             </button>
           </form>
+
+          <div className="text-right mt-3">
+            <button
+              type="button"
+              onClick={() => setShowForgotPassword(true)}
+              className="text-xs text-[#6b9675] hover:text-[#21a637] transition-colors"
+            >
+              Esqueceu a senha?
+            </button>
+          </div>
+
+          {showForgotPassword && (
+            <ForgotPasswordModal onClose={() => setShowForgotPassword(false)} />
+          )}
 
           <p className="text-center text-xs text-[#4d7055] mt-5">
             Ao entrar você concorda com nossos{' '}

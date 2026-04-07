@@ -8,6 +8,19 @@ function AuthCodeHandlerContent() {
   const searchParams = useSearchParams()
 
   useEffect(() => {
+    // Hash-based tokens (Supabase implicit flow — ex: #access_token=...&type=recovery)
+    const hash = typeof window !== 'undefined' ? window.location.hash.slice(1) : ''
+    if (hash) {
+      const hashParams = new URLSearchParams(hash)
+      const type = hashParams.get('type')
+      const accessToken = hashParams.get('access_token')
+      if (type === 'recovery' && accessToken) {
+        // Navegação full-page preservando o hash para o Supabase ler os tokens
+        window.location.replace('/recuperar-senha/nova-senha' + window.location.hash)
+        return
+      }
+    }
+
     const code = String(searchParams.get('code') || '').trim()
     const error = String(searchParams.get('error') || '').trim()
     const tokenHash = String(searchParams.get('token_hash') || '').trim()

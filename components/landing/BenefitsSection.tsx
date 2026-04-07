@@ -96,7 +96,7 @@ export default function BenefitsSection() {
             </div>
             <div className="md:w-1/2 relative self-stretch min-h-[200px] md:min-h-0 w-full rounded-2xl overflow-hidden">
               <Image
-                src="/images/hero-car.jpg"
+                src="/images/landing/aula-adulto.jpg"
                 alt="Aula de direção com instrutor"
                 fill
                 className="object-cover transition-transform duration-700 group-hover:scale-105"

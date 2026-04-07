@@ -41,7 +41,20 @@
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(''''scripts:'''', json.dumps\\(d.get\\(''''scripts'''',{}\\), indent=2\\)\\); print\\(''''devDeps:'''', list\\(d.get\\(''''devDependencies'''',{}\\).keys\\(\\)\\)\\)\")",
       "Bash(npm install:*)",
       "Bash(npx jest:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "WebFetch(domain:www.drivingschoolwebsiteexample.com)",
+      "Bash(mkdir -p \"C:\\\\Users\\\\Luan\\\\workspace\\\\dirigecomigo\\\\public\\\\images\\\\landing\" \"C:\\\\Users\\\\Luan\\\\workspace\\\\dirigecomigo\\\\public\\\\videos\")",
+      "Bash(cp \"C:\\\\Users\\\\Luan\\\\workspace\\\\dirigecomigo\\\\shutterstock_2347063545.jpg\" \"C:\\\\Users\\\\Luan\\\\workspace\\\\dirigecomigo\\\\public\\\\images\\\\landing\\\\aula-jovem.jpg\")",
+      "Bash(cp \"C:\\\\Users\\\\Luan\\\\workspace\\\\dirigecomigo\\\\shutterstock_2360709321.jpg\" \"C:\\\\Users\\\\Luan\\\\workspace\\\\dirigecomigo\\\\public\\\\images\\\\landing\\\\aula-adulto.jpg\")",
+      "Bash(cp \"C:\\\\Users\\\\Luan\\\\workspace\\\\dirigecomigo\\\\shutterstock_2387817533.jpg\" \"C:\\\\Users\\\\Luan\\\\workspace\\\\dirigecomigo\\\\public\\\\images\\\\landing\\\\preparacao-exame.jpg\")",
+      "Bash(cp \"C:\\\\Users\\\\Luan\\\\workspace\\\\dirigecomigo\\\\shutterstock_2407541187.jpg\" \"C:\\\\Users\\\\Luan\\\\workspace\\\\dirigecomigo\\\\public\\\\images\\\\landing\\\\cidade-dirigindo.jpg\")",
+      "WebFetch(domain:www.detran.ce.gov.br)",
+      "WebFetch(domain:credencia.detran.ce.gov.br)",
+      "WebSearch",
+      "WebFetch(domain:www.ibiapaba24horas.com.br)",
+      "WebFetch(domain:diariodonordeste.verdesmares.com.br)",
+      "WebFetch(domain:agenciabrasil.ebc.com.br)",
+      "WebFetch(domain:www.gov.br)"
     ]
   }
 }

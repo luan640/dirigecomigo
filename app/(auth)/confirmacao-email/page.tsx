@@ -98,8 +98,8 @@ function ConfirmacaoEmailContent() {
     return {
       iconWrapperClassName: 'bg-amber-100',
       icon: <MailWarning className="h-9 w-9 text-amber-600" />,
-      title: 'Nao foi possivel confirmar seu e-mail',
-      description: 'O link de confirmacao pode ter expirado ou ja ter sido usado. Tente entrar ou solicite um novo e-mail.',
+      title: 'Não foi possível confirmar seu e-mail',
+      description: 'O link de confirmação pode ter expirado ou ja ter sido usado. Tente entrar ou solicite um novo e-mail.',
     }
   }, [state])
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -21,6 +21,40 @@ export default function NovaSenhaPage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [sessionReady, setSessionReady] = useState(false)
+
+  // Lê os tokens do hash e estabelece sessão de recuperação
+  useEffect(() => {
+    const hash = window.location.hash.slice(1)
+    if (!hash) { setSessionReady(true); return }
+
+    const params = new URLSearchParams(hash)
+    const error = params.get('error')
+    const errorCode = params.get('error_code')
+    const accessToken = params.get('access_token')
+    const refreshToken = params.get('refresh_token')
+    const type = params.get('type')
+
+    if (errorCode === 'otp_expired' || error === 'access_denied') {
+      router.replace('/recuperar-senha?status=codigo-expirado')
+      return
+    }
+
+    if (type === 'recovery' && accessToken && refreshToken) {
+      import('@/lib/supabase/client').then(({ createClient }) => {
+        const supabase = createClient()
+        supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+          .then(() => {
+            // Limpa o hash da URL sem recarregar a página
+            window.history.replaceState(null, '', window.location.pathname)
+            setSessionReady(true)
+          })
+          .catch(() => setSessionReady(true))
+      })
+    } else {
+      setSessionReady(true)
+    }
+  }, [router])
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -37,6 +71,14 @@ export default function NovaSenhaPage() {
     } catch (err) {
       toast.error((err as Error).message || 'Erro ao atualizar a senha.')
     }
+  }
+
+  if (!sessionReady) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+      </div>
+    )
   }
 
   return (

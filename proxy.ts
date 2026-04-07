@@ -10,7 +10,7 @@ const INSTRUCTOR_ROUTES = ['/painel']
 // Routes that require admin role
 const ADMIN_ROUTES = ['/admin']
 // Fully public routes (no auth needed)
-const PUBLIC_PREFIXES = ['/', '/instrutores', '/instrutor', '/entrar', '/cadastro', '/onboarding', '/confirmacao-email', '/_next', '/favicon']
+const PUBLIC_PREFIXES = ['/', '/instrutores', '/instrutor', '/entrar', '/cadastro', '/onboarding', '/confirmacao-email', '/recuperar-senha', '/_next', '/favicon']
 
 function isPublic(pathname: string) {
   return PUBLIC_PREFIXES.some(p => pathname === p || pathname.startsWith(p + '/') || pathname.startsWith(p + '?'))

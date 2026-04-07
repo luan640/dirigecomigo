@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { sendRejectionEmail } from '@/lib/email'
 
 type AdminRoleLookup = {
   role?: string | null
@@ -39,16 +40,20 @@ export async function PATCH(req: Request) {
   const body = await req.json().catch(() => ({}))
   const id = String(body?.id || '').trim()
   const action = String(body?.action || '').trim()
+  const reason = String(body?.reason || '').trim()
 
   if (!id) return NextResponse.json({ error: 'ID obrigatorio.' }, { status: 400 })
   if (action !== 'approve' && action !== 'reject') {
     return NextResponse.json({ error: 'Acao invalida. Use "approve" ou "reject".' }, { status: 400 })
   }
+  if (action === 'reject' && !reason) {
+    return NextResponse.json({ error: 'Informe o motivo da recusa.' }, { status: 400 })
+  }
 
   const updatePayload =
     action === 'approve'
       ? { status: 'approved', is_active: true, is_verified: true }
-      : { status: 'rejected', is_active: false }
+      : { status: 'rejected', is_active: false, rejection_reason: reason }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (service as any)
@@ -59,5 +64,34 @@ export async function PATCH(req: Request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ data, error: null })
+
+  let emailSent = false
+  let emailError: string | null = null
+
+  if (action === 'reject') {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: profile } = await (service as any)
+        .from('profiles')
+        .select('email,full_name')
+        .eq('id', id)
+        .maybeSingle()
+
+      if (profile?.email) {
+        await sendRejectionEmail({
+          to: String(profile.email),
+          name: String(profile.full_name || 'Instrutor'),
+          reason,
+        })
+        emailSent = true
+      } else {
+        emailError = 'O instrutor nao possui e-mail cadastrado no perfil.'
+      }
+    } catch (err) {
+      emailError = (err as Error).message || 'Falha ao enviar e-mail de recusa.'
+      // E-mail falhou mas a rejeição já foi salva — não bloqueia a resposta
+    }
+  }
+
+  return NextResponse.json({ data, error: null, emailSent, emailError })
 }

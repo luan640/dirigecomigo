@@ -2,10 +2,11 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Loader2, ArrowLeft, CheckCircle2 } from 'lucide-react'
+import { Loader2, ArrowLeft, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 
 const schema = z.object({
@@ -14,19 +15,22 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export default function RecuperarSenhaPage() {
+  const searchParams = useSearchParams()
   const [sent, setSent] = useState(false)
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
+  const hasExpiredCode = searchParams.get('status') === 'codigo-expirado'
 
   async function onSubmit({ email }: FormData) {
     try {
-      const { createClient } = await import('@/lib/supabase/client')
-      const supabase = createClient()
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/recuperar-senha/nova-senha`,
+      const res = await fetch('/api/auth/recuperar-senha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
       })
-      if (error) throw error
+      const payload = await res.json()
+      if (!res.ok) throw new Error(payload?.error || 'Erro ao enviar o e-mail.')
       setSent(true)
     } catch (err) {
       toast.error((err as Error).message || 'Erro ao enviar o e-mail.')
@@ -47,6 +51,31 @@ export default function RecuperarSenhaPage() {
           Voltar para o login
         </Link>
       </div>
+    )
+  }
+
+  if (hasExpiredCode) {
+    return (
+      <>
+        <Link href="/entrar" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-6">
+          <ArrowLeft className="h-4 w-4" />
+          Voltar
+        </Link>
+
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 rounded-full bg-amber-100 p-2">
+              <AlertTriangle className="h-4 w-4 text-amber-700" />
+            </div>
+            <div>
+              <h1 className="text-base font-semibold text-amber-900">Código expirado</h1>
+              <p className="mt-1 text-sm text-amber-800">
+                O link de recuperação não é mais válido. Solicite um novo código para redefinir sua senha.
+              </p>
+            </div>
+          </div>
+        </div>
+      </>
     )
   }
 

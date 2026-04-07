@@ -1,167 +1,222 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
-import { ArrowRight, ShieldCheck } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 export default function HeroSection() {
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => { setMounted(true) }, [])
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    const t = setTimeout(() => setReady(true), 120)
+    return () => clearTimeout(t)
+  }, [])
 
   return (
-    <section className="relative min-h-screen flex items-center pt-16 overflow-hidden">
-      {/* Dark green overlay + hero image */}
+    <section className="relative h-screen flex flex-col justify-end overflow-hidden">
+
+      <style>{`
+        @keyframes scrollLine {
+          0%   { transform: scaleY(1) translateY(0); opacity: 0.6; }
+          50%  { transform: scaleY(0.4) translateY(0); opacity: 1; }
+          100% { transform: scaleY(1) translateY(0); opacity: 0.6; }
+        }
+        .hero-scroll-line { animation: scrollLine 2.2s ease-in-out infinite; }
+        .hero-cta-yellow:hover { background: #e09200 !important; }
+        .hero-cta-ghost:hover  { background: rgba(255,255,255,0.1) !important; }
+      `}</style>
+
+      {/* ── Vídeo de fundo ── */}
+      <video
+        autoPlay muted loop playsInline
+        className="absolute inset-0 w-full h-full object-cover"
+        poster="/images/landing/aula-jovem.jpg"
+      >
+        <source src="/videos/hero.mp4" type="video/mp4" />
+      </video>
+
+      {/* ── Grain cinematográfico ── */}
       <div
-        className="absolute inset-0"
+        className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage:
-            "linear-gradient(to right, rgba(0,53,39,0.94) 0%, rgba(0,53,39,0.7) 55%, rgba(0,53,39,0.35) 100%), url('/images/hero-car.jpg')",
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E")`,
+          mixBlendMode: 'overlay',
+          zIndex: 2,
         }}
       />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-6 w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center py-20">
+      {/* ── Gradiente — pesado na base, leve no topo ── */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(to top, rgba(1,12,5,1) 0%, rgba(1,12,5,0.82) 30%, rgba(1,12,5,0.3) 65%, rgba(1,12,5,0.05) 100%)',
+          zIndex: 3,
+        }}
+      />
 
-        {/* Left: Text */}
-        <div
-          className="text-white space-y-8"
-          style={mounted ? { animation: 'fadeUp 0.8s cubic-bezier(0.22,1,0.36,1) both' } : { opacity: 0 }}
-        >
-          <div
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full"
-            style={{ background: 'rgba(249,168,0,0.15)', border: '1px solid rgba(249,168,0,0.3)' }}
-          >
-            <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
-            <span className="text-xs font-bold tracking-widest uppercase" style={{ color: '#F9A800' }}>
-              Fortaleza — CE e região
-            </span>
-          </div>
+      {/* ── Conteúdo ── */}
+      <div className="relative w-full max-w-[1380px] mx-auto px-8 md:px-14 pb-14 md:pb-20" style={{ zIndex: 4 }}>
 
-          <h1
-            className="font-black leading-[0.95] tracking-tight"
+        {/* Headline tipográfico */}
+        <div className="mb-8 overflow-hidden" aria-label="Dirija sem medo">
+          <span
+            className="block text-white"
             style={{
               fontFamily: "'Clash Display', sans-serif",
-              fontSize: 'clamp(2.8rem, 6vw, 5.2rem)',
+              fontSize: 'clamp(5rem, 17vw, 17rem)',
+              lineHeight: 0.83,
+              letterSpacing: '-0.04em',
+              fontWeight: 700,
+              opacity: ready ? 1 : 0,
+              transform: ready ? 'translateY(0)' : 'translateY(110%)',
+              transition: 'opacity 0.9s cubic-bezier(0.16,1,0.3,1), transform 0.9s cubic-bezier(0.16,1,0.3,1)',
+              transitionDelay: '0.05s',
             }}
           >
-            Sua jornada para a{' '}
-            <span style={{ color: '#F9A800' }}>liberdade</span>{' '}
-            começa aqui.
-          </h1>
-
-          <p
-            className="text-xl leading-relaxed max-w-lg"
-            style={{ color: 'rgba(255,255,255,0.8)', fontFamily: "'Outfit', sans-serif" }}
-          >
-            Conectamos você a instrutores certificados e pacientes. Supere o medo, passe no exame e dirija com confiança.
-          </p>
-
-          <div className="flex flex-wrap gap-4 pt-2">
-            <Link
-              href="/instrutores"
-              className="inline-flex items-center gap-2.5 px-8 py-4 font-bold rounded-xl transition-all duration-300 hover:-translate-y-0.5 group"
-              style={{ background: '#F9A800', color: '#003527' }}
-            >
-              Sou Aluno
-              <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-            </Link>
-            <Link
-              href="/cadastro?role=instructor"
-              className="inline-flex items-center gap-2.5 px-8 py-4 font-bold rounded-xl text-white transition-all duration-300 hover:bg-white/20"
-              style={{
-                background: 'rgba(255,255,255,0.1)',
-                backdropFilter: 'blur(12px)',
-                border: '1px solid rgba(255,255,255,0.2)',
-              }}
-            >
-              Sou Instrutor
-            </Link>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <div className="flex gap-0.5">
-              {[1, 2, 3, 4, 5].map((s) => (
-                <svg key={s} className="w-4 h-4" viewBox="0 0 20 20" fill="#F9A800">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-              ))}
-            </div>
-            <span className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
-              4.9 · +2.400 alunos · 180+ instrutores
-            </span>
-          </div>
-        </div>
-
-        {/* Right: Glass card with image + approval badge */}
-        <div
-          className="hidden lg:flex justify-center items-center"
-          style={mounted ? { animation: 'slideInRight 0.8s cubic-bezier(0.22,1,0.36,1) 0.2s both' } : { opacity: 0 }}
-        >
-          <div
-            className="relative p-6 rounded-3xl"
+            DIRIJA
+          </span>
+          <span
+            className="block"
             style={{
-              background: 'rgba(255,255,255,0.08)',
-              backdropFilter: 'blur(16px)',
-              border: '1px solid rgba(255,255,255,0.12)',
-              transform: 'rotate(2deg)',
-              transition: 'transform 0.5s ease',
+              fontFamily: "'Clash Display', sans-serif",
+              fontSize: 'clamp(2.8rem, 8.5vw, 8.5rem)',
+              lineHeight: 0.9,
+              letterSpacing: '-0.03em',
+              fontStyle: 'italic',
+              fontWeight: 700,
+              color: '#F9A800',
+              paddingLeft: 'clamp(0.5rem, 2.5vw, 3.5rem)',
+              opacity: ready ? 1 : 0,
+              transform: ready ? 'translateY(0)' : 'translateY(80%)',
+              transition: 'opacity 0.9s cubic-bezier(0.16,1,0.3,1), transform 0.9s cubic-bezier(0.16,1,0.3,1)',
+              transitionDelay: '0.2s',
             }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.transform = 'rotate(0deg)' }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'rotate(2deg)' }}
           >
-            <div className="relative w-[400px] h-[280px] rounded-2xl overflow-hidden shadow-2xl">
-              <Image
-                src="/images/hero-car.jpg"
-                alt="Aula de direção com instrutor certificado"
-                fill
-                priority
-                className="object-cover"
-                sizes="400px"
-              />
+            sem medo.
+          </span>
+        </div>
+
+        {/* Linha divisória + info + CTAs */}
+        <div
+          style={{
+            borderTop: '1px solid rgba(255,255,255,0.1)',
+            paddingTop: '20px',
+            opacity: ready ? 1 : 0,
+            transform: ready ? 'translateY(0)' : 'translateY(18px)',
+            transition: 'opacity 0.8s ease, transform 0.8s ease',
+            transitionDelay: '0.42s',
+          }}
+        >
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+
+            {/* Texto curto */}
+            <div>
+              <p
+                style={{
+                  fontFamily: "'Outfit', sans-serif",
+                  color: 'rgba(255,255,255,0.38)',
+                  fontSize: '11px',
+                  letterSpacing: '0.15em',
+                  textTransform: 'uppercase',
+                  marginBottom: '4px',
+                }}
+              >
+                Fortaleza · CE
+              </p>
+              <p
+                style={{
+                  fontFamily: "'Outfit', sans-serif",
+                  color: 'rgba(255,255,255,0.65)',
+                  fontSize: '15px',
+                  lineHeight: 1.55,
+                  maxWidth: '320px',
+                }}
+              >
+                Instrutores verificados. Agendamento online. No seu horário.
+              </p>
             </div>
 
-            {/* Taxa de Aprovação badge */}
-            <div
-              className="absolute -bottom-6 -left-6 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl"
-              style={{ background: '#FFFFFF' }}
-            >
-              <div
-                className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: '#F9A800' }}
+            {/* CTAs */}
+            <div className="flex gap-3 flex-shrink-0">
+              <Link
+                href="/instrutores"
+                className="hero-cta-yellow"
+                style={{
+                  background: '#F9A800',
+                  color: '#0a1f06',
+                  padding: '13px 30px',
+                  borderRadius: '3px',
+                  fontFamily: "'Clash Display', sans-serif",
+                  fontWeight: 700,
+                  fontSize: '14px',
+                  letterSpacing: '0.04em',
+                  textDecoration: 'none',
+                  display: 'inline-block',
+                  transition: 'background 0.2s ease',
+                }}
               >
-                <ShieldCheck className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <p
-                  className="text-xs font-bold uppercase tracking-widest"
-                  style={{ color: 'rgba(0,53,39,0.5)' }}
-                >
-                  Taxa de Aprovação
-                </p>
-                <p
-                  className="text-2xl font-black"
-                  style={{ fontFamily: "'Clash Display', sans-serif", color: '#003527' }}
-                >
-                  98%
-                </p>
-              </div>
+                Sou Aluno →
+              </Link>
+              <Link
+                href="/cadastro?role=instructor"
+                className="hero-cta-ghost"
+                style={{
+                  border: '1px solid rgba(255,255,255,0.22)',
+                  color: 'rgba(255,255,255,0.8)',
+                  padding: '13px 30px',
+                  borderRadius: '3px',
+                  fontFamily: "'Clash Display', sans-serif",
+                  fontWeight: 700,
+                  fontSize: '14px',
+                  letterSpacing: '0.04em',
+                  textDecoration: 'none',
+                  display: 'inline-block',
+                  background: 'rgba(255,255,255,0.04)',
+                  backdropFilter: 'blur(8px)',
+                  transition: 'background 0.2s ease',
+                }}
+              >
+                Sou Instrutor
+              </Link>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Asymmetric bottom clip into next section */}
-      <div className="absolute bottom-0 left-0 right-0" style={{ lineHeight: 0 }}>
-        <svg
-          viewBox="0 0 1440 80"
-          preserveAspectRatio="none"
-          style={{ width: '100%', height: '80px', display: 'block' }}
+      {/* ── Indicador de scroll ── */}
+      <div
+        className="absolute bottom-7 right-10 flex flex-col items-center gap-1.5"
+        style={{
+          zIndex: 4,
+          opacity: ready ? 1 : 0,
+          transition: 'opacity 1s ease',
+          transitionDelay: '1s',
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "'Outfit', sans-serif",
+            fontSize: '9px',
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            color: 'rgba(255,255,255,0.3)',
+            writingMode: 'vertical-rl',
+            marginBottom: '4px',
+          }}
         >
-          <polygon points="0,80 1440,0 1440,80" fill="#FEFCF5" />
-        </svg>
+          scroll
+        </span>
+        <div
+          className="hero-scroll-line"
+          style={{
+            width: '1px',
+            height: '44px',
+            background: 'rgba(255,255,255,0.4)',
+            transformOrigin: 'top',
+          }}
+        />
       </div>
+
     </section>
   )
 }
