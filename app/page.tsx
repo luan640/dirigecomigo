@@ -13,6 +13,8 @@ import AuthCodeHandler from './AuthCodeHandler'
 import { loadPublicInstructors } from '@/lib/publicInstructors'
 import type { InstructorCard } from '@/types'
 
+export const dynamic = 'force-dynamic'
+
 async function loadHomeInstructors(): Promise<InstructorCard[]> {
   return loadPublicInstructors()
 }

@@ -54,7 +54,8 @@
       "WebFetch(domain:www.ibiapaba24horas.com.br)",
       "WebFetch(domain:diariodonordeste.verdesmares.com.br)",
       "WebFetch(domain:agenciabrasil.ebc.com.br)",
-      "WebFetch(domain:www.gov.br)"
+      "WebFetch(domain:www.gov.br)",
+      "Bash(node:*)"
     ]
   }
 }
