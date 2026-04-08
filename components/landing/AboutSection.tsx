@@ -85,7 +85,7 @@ export default function AboutSection() {
                 className="inline-block px-3 py-1 text-xs font-bold tracking-widest uppercase rounded-full mb-4"
                 style={{ background: 'rgba(27,94,32,0.08)', color: '#1B5E20' }}
               >
-                Sobre o DirigeComigo
+                Sobre o DireçãoFácil
               </span>
               <h2
                 className="text-4xl md:text-5xl font-black leading-tight mb-6"
@@ -95,7 +95,7 @@ export default function AboutSection() {
                 <span style={{ color: '#1B5E20' }}>com segurança</span>
               </h2>
               <p className="text-lg leading-relaxed" style={{ color: '#5A7A60' }}>
-                O DirigeComigo conecta estudantes de direção com os melhores instrutores de Fortaleza. Nossa missão é criar motoristas seguros e confiantes — seja você alguém que nunca tocou num volante ou quem quer superar o medo de dirigir.
+                O DireçãoFácil conecta estudantes de direção com os melhores instrutores de Fortaleza. Nossa missão é criar motoristas seguros e confiantes — seja você alguém que nunca tocou num volante ou quem quer superar o medo de dirigir.
               </p>
             </div>
 

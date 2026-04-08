@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -14,7 +14,7 @@ const schema = z.object({
 })
 type FormData = z.infer<typeof schema>
 
-export default function RecuperarSenhaPage() {
+function RecuperarSenhaContent() {
   const searchParams = useSearchParams()
   const [sent, setSent] = useState(false)
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
@@ -115,5 +115,13 @@ export default function RecuperarSenhaPage() {
         </button>
       </form>
     </>
+  )
+}
+
+export default function RecuperarSenhaPage() {
+  return (
+    <Suspense>
+      <RecuperarSenhaContent />
+    </Suspense>
   )
 }

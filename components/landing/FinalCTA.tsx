@@ -56,7 +56,7 @@ export default function FinalCTA() {
               className="text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed"
               style={{ color: 'rgba(255,255,255,0.7)', fontFamily: "'Outfit', sans-serif" }}
             >
-              Milhares de alunos já conquistaram a CNH conosco. Seja você o próximo.
+              Seja você o próximo a conquistar a tão sonhada CNH.
             </p>
 
             {/* CTAs */}

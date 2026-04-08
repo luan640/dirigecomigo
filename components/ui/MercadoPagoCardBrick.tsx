@@ -105,6 +105,7 @@ export default function MercadoPagoCardBrick({
           container.innerHTML = ''
         }
 
+        if (!window.MercadoPago) throw new Error('MercadoPago SDK não carregado.')
         const mp = new window.MercadoPago(publicKey, { locale: 'pt-BR' })
         const bricksBuilder = mp.bricks()
 

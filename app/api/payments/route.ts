@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     // -----------------------------------------------------------------------
     const body = await req.json()
     const amount = Number(body?.amount || 0)
-    const description = String(body?.description || 'Aula de direção — DirigeComigo')
+    const description = String(body?.description || 'Aula de direção — DireçãoFácil')
     const metadata = isRecord(body?.metadata) ? body.metadata : {}
     const rawFormData = isRecord(body?.formData) ? body.formData : {}
     const inputEmail = String(body?.customerEmail || '').trim()

@@ -62,12 +62,19 @@ type OnboardingInstructorRow = {
   price_per_lesson?: number | null
   price_per_lesson_a?: number | null
   price_per_lesson_b?: number | null
+  price_per_lesson_c?: number | null
+  price_per_lesson_d?: number | null
+  price_per_lesson_e?: number | null
   neighborhood?: string | null
   city?: string | null
   state?: string | null
   latitude?: number | null
   longitude?: number | null
   owned_vehicle_categories?: unknown[] | null
+  birth_date?: string | null
+  cpf?: string | null
+  lesson_types?: unknown[] | null
+  accepts_student_car?: boolean | null
 }
 
 const CNH_CATEGORIES = [
@@ -300,9 +307,9 @@ function OnboardingContent() {
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: instructor } = await (supabase.from('instructors') as any)
-          .select('category,categories,price_per_lesson_a,price_per_lesson_b,neighborhood,city,state,latitude,longitude,cnh_photo_url,credenciamento_doc_url,owned_vehicle_categories')
+          .select('category,categories,price_per_lesson,price_per_lesson_a,price_per_lesson_b,price_per_lesson_c,price_per_lesson_d,price_per_lesson_e,neighborhood,city,state,latitude,longitude,owned_vehicle_categories,birth_date,cpf,lesson_types,accepts_student_car')
           .eq('id', user.id)
-          .maybeSingle() as { data: OnboardingInstructorRow & { cnh_photo_url?: string | null; credenciamento_doc_url?: string | null } | null; error: Error | null }
+          .maybeSingle() as { data: OnboardingInstructorRow | null; error: Error | null }
 
         const fullName = String(profile?.full_name || user.user_metadata?.full_name || '').trim()
         const email = String(profile?.email || user.email || '').trim()
@@ -310,13 +317,37 @@ function OnboardingContent() {
         const nextAvatarUrl = String(profile?.avatar_url || '').trim() || null
 
         const rawCategories = Array.isArray(instructor?.categories) ? instructor.categories : []
-        const normalizedCategories = rawCategories.map((item: unknown) => String(item))
-        const fallbackCategory = String(instructor?.category || '')
-        const hasCar = normalizedCategories.includes('B') || fallbackCategory === 'B' || fallbackCategory === 'AB'
-        const hasMoto = normalizedCategories.includes('A') || fallbackCategory === 'A' || fallbackCategory === 'AB'
+        const normalizedCategories = rawCategories.length > 0
+          ? rawCategories.map((item: unknown) => String(item))
+          : String(instructor?.category || '').split('').filter(c => /[A-E]/.test(c))
+
+        if (normalizedCategories.length > 0) {
+          setSelectedCategories(normalizedCategories)
+
+          const prices: Record<string, string> = {}
+          const priceMap: Record<string, number | null | undefined> = {
+            A: instructor?.price_per_lesson_a,
+            B: instructor?.price_per_lesson_b,
+            C: instructor?.price_per_lesson_c,
+            D: instructor?.price_per_lesson_d,
+            E: instructor?.price_per_lesson_e,
+          }
+          for (const cat of normalizedCategories) {
+            const p = priceMap[cat] ?? instructor?.price_per_lesson ?? 80
+            prices[cat] = String(Number(p))
+          }
+          setCategoryPrices(prices)
+        }
+
+        const hasCar = normalizedCategories.includes('B')
+        const hasMoto = normalizedCategories.includes('A')
 
         instructorForm.reset({
-          full_name: fullName, email, phone,
+          full_name: fullName,
+          email,
+          phone,
+          birth_date: String(instructor?.birth_date || ''),
+          cpf: instructor?.cpf ? maskCpf(String(instructor.cpf)) : '',
           neighborhood: String(instructor?.neighborhood || ''),
           service_mode: hasCar && hasMoto ? 'both' : hasMoto ? 'moto' : 'car',
           price_car: hasCar ? Number(instructor?.price_per_lesson_b ?? instructor?.price_per_lesson ?? 80) : null,
@@ -342,15 +373,15 @@ function OnboardingContent() {
           setCategoryHasVehicle(Object.fromEntries(owned.map(c => [c, true])))
         }
 
-        if (instructor?.cnh_photo_url) {
-          setCnhPhotoUrl(String(instructor.cnh_photo_url))
-          setCnhFileName('CNH já enviada')
+        if (Array.isArray(instructor?.lesson_types) && instructor.lesson_types.length > 0) {
+          setSelectedLessonTypes(instructor.lesson_types.map(String))
         }
 
-        if (instructor?.credenciamento_doc_url) {
-          setCredenciamentoUrl(String(instructor.credenciamento_doc_url))
-          setCredenciamentoFileName('Credenciamento já enviado')
+        if (instructor?.accepts_student_car) {
+          setAcceptsStudentCar(true)
         }
+
+        // Documents are intentionally not pre-filled — instructor must re-upload them
       } catch (err) {
         toast.error((err as Error).message || 'Erro ao carregar seus dados.')
       } finally {
@@ -398,6 +429,15 @@ function OnboardingContent() {
       }
     }
     setCategoriesError(null)
+
+    if (!cnhPhotoUrl) {
+      toast.error('Envie a foto da sua CNH para continuar.')
+      return
+    }
+    if (!credenciamentoUrl) {
+      toast.error('Envie o documento de credenciamento DETRAN para continuar.')
+      return
+    }
 
     setLoading(true)
     try {

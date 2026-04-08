@@ -284,7 +284,7 @@ export default async function AdminTransactionsPage() {
       ),
       bookingStatusLabel: bookingStatus || '-',
       providerStatusDetail: providerStatus?.statusDetail || '-',
-      providerLiveMode: providerStatus?.liveMode,
+      providerLiveMode: providerStatus?.liveMode ?? null,
       providerStatusError: providerStatus?.error || '',
       createdAtLabel: formatDateTime(createdAt),
       paidAtLabel: formatDateTime(paidAt),

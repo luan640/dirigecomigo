@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { sendRejectionEmail } from '@/lib/email'
+import { sendApprovalEmail, sendRejectionEmail } from '@/lib/email'
 
 type AdminRoleLookup = {
   role?: string | null
@@ -68,7 +68,7 @@ export async function PATCH(req: Request) {
   let emailSent = false
   let emailError: string | null = null
 
-  if (action === 'reject') {
+  if (action === 'approve' || action === 'reject') {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: profile } = await (service as any)
@@ -78,18 +78,19 @@ export async function PATCH(req: Request) {
         .maybeSingle()
 
       if (profile?.email) {
-        await sendRejectionEmail({
-          to: String(profile.email),
-          name: String(profile.full_name || 'Instrutor'),
-          reason,
-        })
+        const name = String(profile.full_name || 'Instrutor')
+        if (action === 'approve') {
+          await sendApprovalEmail({ to: String(profile.email), name })
+        } else {
+          await sendRejectionEmail({ to: String(profile.email), name, reason })
+        }
         emailSent = true
       } else {
         emailError = 'O instrutor nao possui e-mail cadastrado no perfil.'
       }
     } catch (err) {
-      emailError = (err as Error).message || 'Falha ao enviar e-mail de recusa.'
-      // E-mail falhou mas a rejeição já foi salva — não bloqueia a resposta
+      emailError = (err as Error).message || 'Falha ao enviar e-mail.'
+      // E-mail falhou mas a ação já foi salva — não bloqueia a resposta
     }
   }
 

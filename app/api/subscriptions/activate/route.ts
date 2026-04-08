@@ -14,7 +14,8 @@ const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
 
 function resolveBaseUrl(req: Request) {
   const configuredAppUrl = String(process.env.NEXT_PUBLIC_APP_URL || '').trim().replace(/\/$/, '')
-  if (configuredAppUrl) {
+  const isLocalhost = configuredAppUrl.includes('localhost') || configuredAppUrl.includes('127.0.0.1')
+  if (configuredAppUrl && !isLocalhost) {
     return configuredAppUrl
   }
 

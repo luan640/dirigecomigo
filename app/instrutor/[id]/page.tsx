@@ -126,7 +126,7 @@ async function loadInstructorProfileData(id: string) {
   const bookingRows = bookingResult.data
   const instructorMeta = (instructorMetaResult as { data: InstructorMetaRow | null; error: Error | null }).data
   const platformSettings = normalizePlatformPricingSettings(platformSettingsResult.data || DEFAULT_PLATFORM_PRICING_SETTINGS)
-  const lessonPackages = (Array.isArray(lessonPackagesResult.data) ? lessonPackagesResult.data : []).map((item) => ({
+  const lessonPackages = (Array.isArray(lessonPackagesResult.data) ? lessonPackagesResult.data as Record<string, unknown>[] : []).map((item) => ({
     id: String(item.id),
     instructor_id: String(item.instructor_id),
     name: String(item.name || ''),

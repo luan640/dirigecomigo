@@ -224,8 +224,9 @@ function EntrarContent() {
         if (profileError) throw profileError
 
         let onboardingCompleted = Boolean(profile?.onboarding_completed)
+        let instructorStatus = ''
 
-        if (profile?.role === 'instructor' && !onboardingCompleted) {
+        if (profile?.role === 'instructor') {
           const { data: instructor } = await (
             supabase.from('instructors') as never as {
               select: (query: string) => {
@@ -235,55 +236,60 @@ function EntrarContent() {
               }
             }
           )
-            .select('category,price_per_lesson,vehicle_type')
+            .select('category,price_per_lesson,vehicle_type,status')
             .eq('id', user.id)
             .maybeSingle()
 
-          const hasInstructorSetup = Boolean(
-            instructor &&
-              String(instructor.category || '').trim() &&
-              Number(instructor.price_per_lesson || 0) >= 1
-          )
+          instructorStatus = String(instructor?.status || '')
 
-          if (hasInstructorSetup) {
-            onboardingCompleted = true
-          } else {
-            const { data: subscription } = await (
-              supabase.from('subscriptions') as never as {
-                select: (query: string) => {
-                  eq: (column: string, value: string) => {
-                    order: (column: string, options?: { ascending?: boolean }) => {
-                      limit: (count: number) => {
-                        maybeSingle: () => Promise<{ data: Record<string, unknown> | null }>
+          if (!onboardingCompleted) {
+            const hasInstructorSetup = Boolean(
+              instructor &&
+                instructorStatus !== 'rejected' &&
+                String(instructor.category || '').trim() &&
+                Number(instructor.price_per_lesson || 0) >= 1
+            )
+
+            if (hasInstructorSetup) {
+              onboardingCompleted = true
+            } else {
+              const { data: subscription } = await (
+                supabase.from('subscriptions') as never as {
+                  select: (query: string) => {
+                    eq: (column: string, value: string) => {
+                      order: (column: string, options?: { ascending?: boolean }) => {
+                        limit: (count: number) => {
+                          maybeSingle: () => Promise<{ data: Record<string, unknown> | null }>
+                        }
                       }
                     }
                   }
                 }
+              )
+                .select('status,current_period_end,expires_at')
+                .eq('instructor_id', user.id)
+                .order('updated_at', { ascending: false })
+                .limit(1)
+                .maybeSingle()
+
+              const status = String(subscription?.status || '')
+              const endDateRaw = subscription?.current_period_end || subscription?.expires_at
+              const today = new Date().toISOString().split('T')[0]
+              const hasActiveSubscription = Boolean(
+                subscription &&
+                  status === 'active' &&
+                  typeof endDateRaw === 'string' &&
+                  String(endDateRaw).slice(0, 10) >= today
+              )
+
+              if (hasActiveSubscription) {
+                onboardingCompleted = true
               }
-            )
-              .select('status,current_period_end,expires_at')
-              .eq('instructor_id', user.id)
-              .order('updated_at', { ascending: false })
-              .limit(1)
-              .maybeSingle()
-
-            const status = String(subscription?.status || '')
-            const endDateRaw = subscription?.current_period_end || subscription?.expires_at
-            const today = new Date().toISOString().split('T')[0]
-            const hasActiveSubscription = Boolean(
-              subscription &&
-                status === 'active' &&
-                typeof endDateRaw === 'string' &&
-                String(endDateRaw).slice(0, 10) >= today
-            )
-
-            if (hasActiveSubscription) {
-              onboardingCompleted = true
             }
           }
         }
 
-        if (profile?.role === 'instructor' && !onboardingCompleted) {
+        if (profile?.role === 'instructor' && (!onboardingCompleted || instructorStatus === 'rejected')) {
           router.push('/onboarding?role=instructor')
         } else if (redirectTo) {
           router.push(redirectTo)
