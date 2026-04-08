@@ -226,7 +226,8 @@ export async function loadPublicInstructors(): Promise<InstructorCard[]> {
       }
 
       return instructors
-        .filter((row) => (row as InstructorRow).is_active !== false)
+        .filter((row) => (row as InstructorRow).is_active === true)
+        .filter((row) => String((row as InstructorRow).status || '') === 'approved')
         .filter((row) => {
           const instructorId = String((row as InstructorRow).id || '')
           const instructorSubscriptions = subscriptionsByInstructor.get(instructorId) || []
@@ -285,7 +286,8 @@ export async function loadPublicInstructors(): Promise<InstructorCard[]> {
     const instructorRows = instructorResult.data as InstructorRow[]
 
     return instructorRows
-      .filter((row: InstructorRow) => row.is_active !== false)
+      .filter((row: InstructorRow) => row.is_active === true)
+      .filter((row: InstructorRow) => String(row.status || '') === 'approved')
       .map((row: InstructorRow) =>
         buildInstructorCard({
           row,

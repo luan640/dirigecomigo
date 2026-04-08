@@ -6,12 +6,12 @@ import { usePathname } from 'next/navigation'
 import {
   BarChart2,
   CalendarDays,
-  ChevronRight,
+  ChevronDown,
   Clock4,
   CreditCard,
   LayoutDashboard,
   Menu,
-  ShieldAlert,
+  PanelLeft,
   User,
   Wallet,
   BookOpen,
@@ -22,36 +22,114 @@ import BrandLogo from '@/components/layout/BrandLogo'
 import LogoutButton from '@/components/layout/LogoutButton'
 
 const navItems = [
-  { href: '/painel/dashboard', label: 'Inicio', icon: LayoutDashboard },
-  { href: '/painel/agenda', label: 'Agenda', icon: CalendarDays },
-  { href: '/painel/aulas-externas', label: 'Aulas externas', icon: ClipboardList },
-  { href: '/painel/horarios', label: 'Horarios', icon: Clock4 },
+  { href: '/painel/dashboard',      label: 'Início',          icon: LayoutDashboard },
+  { href: '/painel/agenda',         label: 'Agenda',          icon: CalendarDays },
+  { href: '/painel/aulas-externas', label: 'Aulas externas',  icon: ClipboardList },
+  { href: '/painel/horarios',       label: 'Horários',        icon: Clock4 },
   {
     href: '/painel/servicos',
-    label: 'Meus Servicos',
+    label: 'Meus Serviços',
     icon: BookOpen,
     children: [
       { href: '/painel/servicos/aulas-avulsas', label: 'Aulas avulsas' },
-      { href: '/painel/servicos/pacotes', label: 'Pacotes' },
+      { href: '/painel/servicos/pacotes',       label: 'Pacotes' },
     ],
   },
-  { href: '/painel/carteira', label: 'Carteira', icon: Wallet },
-  { href: '/painel/analytics', label: 'Relatorios', icon: BarChart2 },
-  { href: '/painel/perfil', label: 'Meu Perfil', icon: User },
-  { href: '/painel/assinatura', label: 'Assinatura', icon: CreditCard },
+  { href: '/painel/carteira',    label: 'Carteira',   icon: Wallet },
+  { href: '/painel/analytics',   label: 'Relatórios', icon: BarChart2 },
+  { href: '/painel/perfil',      label: 'Meu Perfil', icon: User },
+  { href: '/painel/assinatura',  label: 'Assinatura', icon: CreditCard },
 ]
 
-type Props = {
-  isUnlocked: boolean
-  userName: string
-  userEmail: string
-}
+type Props = { isUnlocked: boolean; userName: string; userEmail: string }
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) return 'I'
-  if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase()
+  if (parts.length === 1) return parts[0][0].toUpperCase()
   return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+}
+
+function NavContent({ isUnlocked, pathname, mobile, onClose, servicesOpen, setServicesOpen }: {
+  isUnlocked: boolean
+  pathname: string
+  mobile: boolean
+  onClose: () => void
+  servicesOpen: boolean
+  setServicesOpen: (v: boolean) => void
+}) {
+  return (
+    <nav className="flex-1 overflow-y-auto px-3">
+      <div className="space-y-0.5">
+        {navItems.map(({ href, label, icon: Icon, children }) => {
+          const isSubscriptionPage = href === '/painel/assinatura'
+          const locked = !isUnlocked && !isSubscriptionPage
+          const active = pathname === href || (href !== '/painel/servicos' && pathname.startsWith(`${href}/`))
+          const hasChildren = Array.isArray(children) && children.length > 0
+          const parentActive = hasChildren && pathname.startsWith(href)
+
+          if (hasChildren && !locked) {
+            return (
+              <div key={href}>
+                <button
+                  type="button"
+                  onClick={() => setServicesOpen(!servicesOpen)}
+                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    parentActive
+                      ? 'bg-gray-100 text-gray-900'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="flex-1 text-left">{label}</span>
+                  <ChevronDown className={`h-3.5 w-3.5 text-gray-400 transition-transform ${servicesOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {servicesOpen && (
+                  <div className="ml-4 mt-0.5 border-l border-gray-200 pl-3 space-y-0.5">
+                    {children.map(child => {
+                      const childActive = pathname === child.href
+                      return (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          onClick={() => { if (mobile) onClose() }}
+                          className={`block rounded-lg px-3 py-2 text-sm transition-colors ${
+                            childActive
+                              ? 'bg-gray-100 font-medium text-gray-900'
+                              : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                          }`}
+                        >
+                          {child.label}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          }
+
+          return (
+            <Link
+              key={href}
+              href={locked ? '/painel/assinatura' : href}
+              onClick={() => { if (mobile) onClose() }}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                active
+                  ? 'bg-gray-100 text-gray-900'
+                  : locked
+                    ? 'text-gray-300 cursor-not-allowed pointer-events-none'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              <span>{label}</span>
+            </Link>
+          )
+        })}
+      </div>
+    </nav>
+  )
 }
 
 export default function InstructorSidebar({ isUnlocked, userName, userEmail }: Props) {
@@ -59,178 +137,100 @@ export default function InstructorSidebar({ isUnlocked, userName, userEmail }: P
   const [mobileOpen, setMobileOpen] = useState(false)
   const [servicesOpen, setServicesOpen] = useState(pathname.startsWith('/painel/servicos'))
 
-  const renderLinks = (mobile = false) => (
-    <nav className="flex-1 space-y-1">
-      {navItems.map(({ href, label, icon: Icon, children }) => {
-        const isSubscriptionPage = href === '/painel/assinatura'
-        const locked = !isUnlocked && !isSubscriptionPage
-        const targetHref = locked ? '/painel/assinatura' : href
-        const active = pathname === href || pathname.startsWith(`${href}/`)
-        const hasChildren = Array.isArray(children) && children.length > 0
+  const sharedNavProps = { isUnlocked, pathname, servicesOpen, setServicesOpen }
 
-        return (
-          <div key={href} className="space-y-1">
-            {hasChildren && !locked ? (
-              <button
-                type="button"
-                onClick={() => setServicesOpen(current => !current)}
-                className={`group flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-semibold transition-all ${
-                  active
-                    ? 'bg-[#0f2f63] text-white shadow-[0_12px_30px_rgba(15,47,99,0.25)]'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                <Icon className={`h-4 w-4 shrink-0 ${active ? 'text-[#f6d86c]' : ''}`} />
-                <span className="truncate">{label}</span>
-                <ChevronRight
-                  className={`ml-auto h-4 w-4 transition-transform ${active ? 'text-[#f6d86c]' : 'text-slate-400'} ${servicesOpen ? 'rotate-90' : ''}`}
-                />
-              </button>
-            ) : (
-              <Link
-                href={targetHref}
-                onClick={() => {
-                  if (mobile) setMobileOpen(false)
-                }}
-                className={`group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-all ${
-                  active
-                    ? 'bg-[#0f2f63] text-white shadow-[0_12px_30px_rgba(15,47,99,0.25)]'
-                    : locked
-                      ? 'bg-slate-50 text-slate-400'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                <Icon className={`h-4 w-4 shrink-0 ${active ? 'text-[#f6d86c]' : ''}`} />
-                <span className="truncate">{label}</span>
-                {locked ? (
-                  <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-500">
-                    <ShieldAlert className="h-3 w-3" />
-                    Bloqueado
-                  </span>
-                ) : null}
-              </Link>
-            )}
-
-            {hasChildren && !locked && servicesOpen ? (
-              <div className="ml-6 space-y-1 border-l border-slate-200 pl-4">
-                {children.map(child => {
-                  const childActive = pathname === child.href
-                  return (
-                    <Link
-                      key={child.href}
-                      href={child.href}
-                      onClick={() => {
-                        if (mobile) setMobileOpen(false)
-                      }}
-                      className={`flex items-center rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
-                        childActive
-                          ? 'bg-white text-[#0f2f63] shadow-sm'
-                          : 'text-slate-500 hover:bg-white hover:text-slate-900'
-                      }`}
-                    >
-                      {child.label}
-                    </Link>
-                  )
-                })}
-              </div>
-            ) : null}
-          </div>
-        )
-      })}
-    </nav>
-  )
-
-  const userPanel = (
-    <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 backdrop-blur">
+  const userFooter = (
+    <div className="border-t border-gray-100 px-4 py-4">
       <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#0f2f63] text-sm font-bold text-white">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1B5E20] text-xs font-bold text-white">
           {getInitials(userName)}
         </div>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-slate-900">{userName}</p>
-          <p className="truncate text-xs text-slate-500">{userEmail}</p>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-gray-900">{userName}</p>
+          <p className="truncate text-xs text-gray-400">{userEmail}</p>
         </div>
-      </div>
-      <div className="mt-3 border-t border-slate-200 pt-3">
-        <LogoutButton className="rounded-xl px-0 py-1 text-slate-500 hover:text-red-600" />
+        <LogoutButton
+          className="shrink-0 !w-auto !px-0 !py-0 text-gray-400 hover:text-red-500"
+          label=""
+        />
       </div>
     </div>
   )
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-slate-200 bg-[rgba(248,250,252,0.95)] px-4 py-3 backdrop-blur md:hidden">
-        <Link href="/painel/dashboard" className="flex items-center">
-          <BrandLogo className="h-9 w-auto" priority />
+      {/* Mobile top bar */}
+      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-gray-100 bg-white px-4 py-3 md:hidden">
+        <Link href="/painel/dashboard">
+          <BrandLogo className="h-8 w-auto" priority />
         </Link>
         <button
           type="button"
           onClick={() => setMobileOpen(true)}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700"
-          aria-label="Abrir menu do painel"
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
+          aria-label="Abrir menu"
         >
-          <Menu className="h-5 w-5" />
+          <Menu className="h-4 w-4" />
         </button>
       </header>
 
-      <aside className="sticky top-0 hidden h-screen w-[292px] shrink-0 border-r border-slate-200 bg-[linear-gradient(180deg,#f8fafc_0%,#eef4ff_100%)] md:flex md:flex-col">
-        <div className="flex h-full min-h-0 flex-col px-5 py-6">
-          <Link href="/painel/dashboard" className="flex items-center">
-            <BrandLogo className="h-10 w-auto" priority />
+      {/* Desktop sidebar */}
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-gray-100 bg-white md:flex">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-5">
+          <Link href="/painel/dashboard">
+            <BrandLogo className="h-8 w-auto" priority />
           </Link>
-
-          <div className="mt-8 rounded-2xl bg-[#0f2f63] p-4 text-white shadow-[0_20px_45px_rgba(15,47,99,0.22)]">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#f6d86c]">Painel do Instrutor</p>
-            <p className="mt-2 text-sm text-slate-200">Gerencie agenda, servicos, pacotes e resultados em um unico lugar.</p>
-          </div>
-
-          <div className="mt-6 min-h-0 flex-1 overflow-y-auto pr-1">
-            {renderLinks()}
-          </div>
-
-          <div className="mt-4 shrink-0">{userPanel}</div>
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            aria-label="Recolher sidebar"
+          >
+            <PanelLeft className="h-4 w-4" />
+          </button>
         </div>
+
+        {/* Nav */}
+        <div className="flex-1 overflow-hidden py-2">
+          <NavContent {...sharedNavProps} mobile={false} onClose={() => {}} />
+        </div>
+
+        {/* User footer */}
+        {userFooter}
       </aside>
 
-      {mobileOpen ? (
+      {/* Mobile drawer */}
+      {mobileOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <button
             type="button"
-            className="absolute inset-0 bg-slate-950/45"
+            className="absolute inset-0 bg-black/30"
             onClick={() => setMobileOpen(false)}
-            aria-label="Fechar menu do painel"
+            aria-label="Fechar menu"
           />
-          <div className="absolute left-0 top-0 flex h-full w-[88vw] max-w-[320px] flex-col bg-[linear-gradient(180deg,#f8fafc_0%,#eef4ff_100%)] shadow-[0_24px_60px_rgba(15,23,42,0.28)]">
-            <div className="flex items-center justify-between px-5 py-4">
-              <Link href="/painel/dashboard" className="flex items-center" onClick={() => setMobileOpen(false)}>
-                <BrandLogo className="h-9 w-auto" priority />
+          <div className="absolute left-0 top-0 flex h-full w-72 flex-col bg-white shadow-xl">
+            <div className="flex items-center justify-between px-5 py-5">
+              <Link href="/painel/dashboard" onClick={() => setMobileOpen(false)}>
+                <BrandLogo className="h-8 w-auto" priority />
               </Link>
               <button
                 type="button"
                 onClick={() => setMobileOpen(false)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100"
                 aria-label="Fechar menu"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="px-5 pb-4">
-              <div className="rounded-2xl bg-[#0f2f63] p-4 text-white">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#f6d86c]">Painel do Instrutor</p>
-                <p className="mt-2 text-sm text-slate-200">Navegacao otimizada para celular.</p>
-              </div>
+            <div className="flex-1 overflow-hidden py-2">
+              <NavContent {...sharedNavProps} mobile={true} onClose={() => setMobileOpen(false)} />
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col px-5 pb-5">
-              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-                {renderLinks(true)}
-              </div>
-              <div className="mt-4 shrink-0">{userPanel}</div>
-            </div>
+            {userFooter}
           </div>
         </div>
-      ) : null}
+      )}
     </>
   )
 }
